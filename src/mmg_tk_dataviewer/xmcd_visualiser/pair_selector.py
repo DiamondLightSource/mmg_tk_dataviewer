@@ -151,7 +151,8 @@ class PairSelector:
             self._base.plot_pairs()
 
     def btn_load_file(self):
-        folder, pairs = load_pairs(self.root, self._base.config[C.current_proc])
+        default_folder = self._base.config.get(C.current_proc) or self._base.config.get(C.current_dir, '')
+        folder, pairs = load_pairs(self.root, default_folder)
         if folder:
             self._base.add_exp_path(folder)
             self.set_pair_numbers(pairs)

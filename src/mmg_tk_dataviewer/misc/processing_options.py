@@ -65,7 +65,7 @@ def generate_processing_menu(parent, config: dict, directory: str | None = None,
                              replacement_getter=None) -> dict:
     """Generate processing menu options"""
 
-    directory = directory or config[C.current_dir]
+    directory = directory or config.get(C.current_dir, '')
     proc_dir = config.get(C.current_proc) or get_processing_directory(directory)
     nb_dir = config.get(C.current_nb) or get_notebook_directory(directory)
 

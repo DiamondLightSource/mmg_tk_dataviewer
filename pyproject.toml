@@ -7,7 +7,9 @@ name = "mmg-tk-dataviewer"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "mmg-toolbox>=0.6.5",
+    "pillow",
+    "matplotlib",
+    "mmg-toolbox==0.7.0",
 ]
 authors = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
 maintainers = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
@@ -22,3 +24,21 @@ classifiers = [
     'License :: OSI Approved :: Apache Software License',
     'Development Status :: 3 - Alpha',
 ]
+
+[project.scripts]
+dataviewer = "mmg_tk_dataviewer:cli_run"
+
+[project.optional-dependencies]
+
+dev = [
+    "pytest",
+    "scipy-stubs>=1.15.3.0",
+    "pillow",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

@@ -41,11 +41,13 @@ def run(*args):
     for n, arg in enumerate(args):
         if os.path.isdir(arg):
             beamline = get_beamline_from_directory(os.path.abspath(arg), beamline)
+            print(f"Folder Path: {os.path.abspath(arg)}, Beamline: {beamline}")
             config = get_config(beamline=beamline)
             create_data_viewer(arg, config=config)
             return
         elif os.path.isfile(arg):
             beamline = get_beamline_from_directory(os.path.abspath(arg), beamline)
+            print(f"File Path: {os.path.abspath(arg)}, Beamline: {beamline}")
             config = get_config(beamline=beamline)
             create_nexus_viewer(arg, config=config)
             return

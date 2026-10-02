@@ -6,6 +6,7 @@ import os
 import tkinter
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from h5py import is_hdf5
 from PIL import ImageGrab
 
 from .styles import RootWithStyle, theme_menu
@@ -69,7 +70,6 @@ def config_menu(root: tk.Misc, config: dict) -> dict:
 
 def select_hdf_file(parent, initial_directory: str | None = None) -> str | None:
     """Select HDF file using filedialog"""
-    from h5py import is_hdf5
     filename = filedialog.askopenfilename(
         title='Select file to open',
         filetypes=[('NXS file', '.nxs'),
@@ -86,6 +86,31 @@ def select_hdf_file(parent, initial_directory: str | None = None) -> str | None:
         )
         filename = None
     return filename
+
+
+def select_hdf_files(parent, initial_directory: str | None = None) -> list[str]:
+    """Select HDF file using filedialog"""
+    filenames = filedialog.askopenfilenames(
+        title='Select file to open',
+        filetypes=[('NXS file', '.nxs'),
+                   ('HDF file', '.h5'), ('HDF file', '.hdf'), ('HDF file', '.hdf5'),
+                   ('All files', '.*')],
+        parent=parent,
+        initialdir=initial_directory
+    )
+    good, bad = [], []
+    for filename in filenames:
+        if is_hdf5(filename):
+            good.append(filename)
+        else:
+            bad.append(filename)
+    if bad:
+        messagebox.showwarning(
+            title='Incorrect File Type',
+            message=f"These files can't be read by h5py: \n  " + '\n  '.join(bad),
+            parent=parent
+        )
+    return good
 
 
 def select_folder(parent, initial_directory: str | None = None):

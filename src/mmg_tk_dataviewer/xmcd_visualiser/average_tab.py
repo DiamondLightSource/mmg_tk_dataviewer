@@ -27,7 +27,8 @@ class Average:
     def __init__(self, root: tk.Misc, base: XMCDVisualiser):
         from .average_plot import AveragePlot
         from .grid_plot import GridPlot
-        from .pair_selector import PairSelector
+        # from .pair_selector import PairSelector
+        from .pair_selector_with_table import PairSelector
         self._base = base
         self.root = root
         self.config = base.config

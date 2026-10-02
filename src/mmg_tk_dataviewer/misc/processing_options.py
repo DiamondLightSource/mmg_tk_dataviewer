@@ -83,7 +83,7 @@ def generate_processing_menu(parent, config: dict, directory: str | None = None,
         filenames = scan_files_getter()
         scan_numbers = ', '.join(str(get_scan_number(f)) for f in filenames)
         create_xmcd_visualiser(parent=parent, config=config, data_directory=directory,
-                               scan_range_str=scan_numbers)
+                               scan_range_str=scan_numbers, filenames=filenames)
 
     def replacements():
         values = {

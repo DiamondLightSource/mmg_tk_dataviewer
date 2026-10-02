@@ -23,14 +23,11 @@ def treeview_sort_column(treeview: ttk.Treeview, col: str, reverse: bool, sort_c
     """
     if sort_col is None:
         sort_col = col
-    
-    c_item = lambda iid: treeview.item(iid)['text'] if col == '#0' else lambda iid: treeview.set(iid, col)
-    # if col == "#0":
-    #     def get_item(iid):
-    #         return treeview.item(iid)['text']
-    # else:
-    #     def get_item(iid):
-    #         return treeview.set(iid, col)
+
+    if col == '#0':
+        c_item = lambda iid: treeview.item(iid)['text']
+    else:
+        c_item = lambda iid: treeview.set(iid, col)
 
     items = [(c_item(iid), iid) for iid in treeview.get_children('')]
     items.sort(reverse=reverse)

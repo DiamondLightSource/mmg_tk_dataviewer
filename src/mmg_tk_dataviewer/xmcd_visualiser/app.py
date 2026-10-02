@@ -6,7 +6,7 @@ from ..misc.styles import RootWithStyle, create_root
 
 
 def create_xmcd_visualiser(data_directory: str | None = None, scan_range_str: str = None,
-                           pairs: list[tuple[int, int]] = None,
+                           pairs: list[tuple[int, int]] = None, filenames: list[str] | None = None,
                            parent: tk.Misc | None = None, config: dict | None = None) -> RootWithStyle:
     """
     Create a Data Viewer showing all scans in an experiment folder
@@ -19,7 +19,7 @@ def create_xmcd_visualiser(data_directory: str | None = None, scan_range_str: st
     if data_directory:
         config[C.current_dir] = data_directory
 
-    widget = XMCDVisualiser(root, scan_range_str=scan_range_str,
+    widget = XMCDVisualiser(root, scan_range_str=scan_range_str, filenames=filenames,
                             pairs=pairs, config=config)
 
     def set_data_path():

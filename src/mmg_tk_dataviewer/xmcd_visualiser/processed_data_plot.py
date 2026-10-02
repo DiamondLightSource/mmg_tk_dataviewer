@@ -7,11 +7,11 @@ from tkinter import ttk, filedialog, messagebox
 from h5py import is_hdf5
 
 from mmg_toolbox.xas import SpectraContainerSubtraction
-from mmg_toolbox.xas.nxxas_loader import load_xas_scans, is_subtraction, load_xmcd_from_processed_nxs
+from mmg_toolbox.xas.nxxas_loader import load_xas_scans, is_subtraction
 from mmg_toolbox.plotting.matplotlib import plot_lines, plot_3d_lines
 
 from ..misc.logging import create_logger
-from ..misc.functions import show_error, select_hdf_file
+from ..misc.functions import show_error
 from ..widgets.treeview import CanvasTreeview
 from ..widgets.simple_plot import SimplePlot
 from .widget import XMCDVisualiser
@@ -23,35 +23,6 @@ METADATA_OPTIONS = {
     'Field': 'mag_field',
     'Pitch': 'pitch'
 }
-
-
-def load_subtraction_file(root: tk.Misc, initial_directory: str | None = None) -> str | None:
-    filename = select_hdf_file(root, initial_directory)
-    if filename and not is_subtraction(filename):
-        messagebox.showwarning(
-            title='File must be a processed XMCD file',
-            message=f"File: \n{filename}\n is not an XAS Subtraction file.",
-            parent=root
-        )
-        filename = None
-    return filename
-
-
-def load_pairs(root: tk.Misc, initial_dir: str) -> tuple[str | None, list[tuple[int, int]]]:
-    filename = load_subtraction_file(root, initial_directory=initial_dir)
-    if filename:
-        scan = load_xmcd_from_processed_nxs(filename)
-        if hasattr(scan.metadata, 'raw_files1') and hasattr(scan.metadata, 'raw_files2'):
-            raw_files1 = scan.metadata.raw_files1
-            raw_files2 = scan.metadata.raw_files2
-            folder = next(iter(raw_files1.values()))
-            pairs = [
-                (int(scan_no1), int(scan_no2))
-                for scan_no1, scan_no2 in zip(raw_files1.keys(), raw_files2.keys())
-            ]
-            print(f"Loaded {len(pairs)} pairs in folder: {folder}")
-            return folder, pairs
-    return None, []
 
 
 class ProcessedTreeView(CanvasTreeview):

@@ -4,8 +4,8 @@
 
 import tkinter as tk
 
-from mmg_toolbox.tkguis.misc.functions import topmenu, select_hdf_file
-from mmg_toolbox.tkguis.misc.styles import RootWithStyle, create_root
+from ..misc.functions import topmenu, select_hdf_file
+from ..misc.styles import RootWithStyle, create_root
 
 
 def create_nexus_viewer(filename: str | None = None, parent: tk.Misc | None = None,

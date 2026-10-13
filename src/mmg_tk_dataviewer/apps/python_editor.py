@@ -4,10 +4,10 @@ A python editor
 
 import tkinter as tk
 from tkinter import messagebox, filedialog
-from mmg_toolbox.tkguis.misc.config import get_config, C
-from mmg_toolbox.tkguis.misc.functions import topmenu
-from mmg_toolbox.tkguis.misc.styles import create_root, RootWithStyle
-from mmg_toolbox.tkguis.misc.logging import create_logger
+from ..misc.config import get_config, C
+from ..misc.functions import topmenu
+from ..misc.styles import create_root, RootWithStyle
+from ..misc.logging import create_logger
 
 
 logger = create_logger(__file__)

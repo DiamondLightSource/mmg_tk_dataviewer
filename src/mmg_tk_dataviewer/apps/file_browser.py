@@ -1,7 +1,7 @@
 import tkinter as tk
 
-from mmg_toolbox.tkguis.misc.functions import topmenu
-from mmg_toolbox.tkguis.misc.styles import RootWithStyle, create_root
+from ..misc.functions import topmenu
+from ..misc.styles import RootWithStyle, create_root
 
 
 def create_file_browser(parent: tk.Misc | None = None, initial_directory: str | None = None) -> RootWithStyle:

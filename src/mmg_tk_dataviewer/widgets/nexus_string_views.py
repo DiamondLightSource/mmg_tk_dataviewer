@@ -7,7 +7,7 @@ from tkinter import ttk
 
 import hdfmap
 
-from mmg_toolbox.tkguis.misc.styles import update_text_style
+from ..misc.styles import update_text_style
 
 
 class _StringView:

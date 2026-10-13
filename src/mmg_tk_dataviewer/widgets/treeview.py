@@ -5,7 +5,7 @@ Convenience wrapper for ttk.Treeview
 import tkinter as tk
 from tkinter import ttk
 
-from mmg_toolbox.tkguis.misc.functions import post_right_click_menu
+from ..misc.functions import post_right_click_menu
 
 
 TreeViewColumn = tuple[str, str, int, bool, str | None]  # name, title, width, reverse, sort_col

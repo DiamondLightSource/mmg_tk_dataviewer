@@ -1,12 +1,13 @@
 
 from tkinter.messagebox import askokcancel
 
-from mmg_toolbox.tkguis.misc.config import get_config, C
-from mmg_toolbox.tkguis.misc.functions import topmenu
-from mmg_toolbox.tkguis.misc.styles import create_root
-from mmg_toolbox.tkguis.misc.jupyter import launch_jupyter_notebook, terminate_notebooks
 from mmg_toolbox.utils.env_functions import open_terminal
 from mmg_toolbox.beamline_metadata.default_scripts import create_beamline_scripts
+
+from ..misc.config import get_config, C
+from ..misc.functions import topmenu
+from ..misc.styles import create_root
+from ..misc.jupyter import launch_jupyter_notebook, terminate_notebooks
 
 
 def create_title_window(beamline: str | None = None):

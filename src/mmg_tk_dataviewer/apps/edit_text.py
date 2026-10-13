@@ -2,8 +2,8 @@
 Simple window with editable text box
 """
 
-from mmg_toolbox.tkguis.misc.styles import tk, ttk, create_root
-from mmg_toolbox.tkguis.misc.logging import create_logger
+from ..misc.styles import tk, ttk, create_root
+from ..misc.logging import create_logger
 
 logger = create_logger(__file__)
 

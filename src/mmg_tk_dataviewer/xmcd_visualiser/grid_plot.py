@@ -91,6 +91,7 @@ class GridPlot:
     def clear_plots(self):
         for frm in self.figure_frames:
             frm.destroy()
+        self.figures.clear()
 
     def update_plots(self, *spectra: SpectraContainerSubtraction, mode: str | None = None):
         if len(spectra) != len(self.figures):

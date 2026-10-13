@@ -190,7 +190,8 @@ class MultiScanAnalysis:
             parent=self.root,
             config=self.config,
             data_directory=self.exp_folder.get(),
-            scan_range_str=findranges(list(scan_files)) if scan_files else None
+            scan_range_str=findranges(list(scan_files)) if scan_files else None,
+            filenames=list(scan_files.values()) if scan_files else None,
         )
 
     def plot_legend(self):

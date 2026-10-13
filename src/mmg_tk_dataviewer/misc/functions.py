@@ -113,7 +113,7 @@ def select_hdf_files(parent, initial_directory: str | None = None) -> list[str]:
     return good
 
 
-def select_folder(parent, initial_directory: str | None = None):
+def select_folder(parent, initial_directory: str | None = None) -> str | None:
     """Select folder"""
     foldername = filedialog.askdirectory(
         initialdir=initial_directory,
@@ -124,8 +124,35 @@ def select_folder(parent, initial_directory: str | None = None):
     return foldername
 
 
+def save_script(parent, initial_directory: str | None = None, initialfile: str = 'script.py'):
+    """Get save location"""
+    filename = filedialog.asksaveasfilename(
+        initialdir=initial_directory,
+        title='Save Python script',
+        initialfile=initialfile,
+        defaultextension='.py',
+        filetypes=[('Python Script', '.py')],
+        parent=parent,
+    )
+    return filename
+
+
+def save_notebook(parent, initial_directory: str | None = None, initialfile: str = 'notebook.ipynb') -> str | None:
+    """Get save location"""
+    filename = filedialog.asksaveasfilename(
+        initialdir=initial_directory,
+        title='Save notebook...',
+        initialfile=initialfile,
+        defaultextension='.ipynb',
+        filetypes=[('IPython Notebook', '.ipynb')],
+        parent=parent,
+    )
+    return filename
+
+
 def check_new_file(parent, filename: str | None = None) -> str | None:
     """Check if filename is new and writable"""
+    filename = filename or ''
     path, name = os.path.split(filename)
     if not os.access(path, os.W_OK):
         show_error(f"new file cannot be written as path is not writable: '{path}'",

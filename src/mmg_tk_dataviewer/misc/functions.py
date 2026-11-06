@@ -6,6 +6,7 @@ import os
 import tkinter
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from h5py import is_hdf5
 from PIL import ImageGrab
 
 from .styles import RootWithStyle, theme_menu
@@ -69,7 +70,6 @@ def config_menu(root: tk.Misc, config: dict) -> dict:
 
 def select_hdf_file(parent, initial_directory: str | None = None) -> str | None:
     """Select HDF file using filedialog"""
-    from h5py import is_hdf5
     filename = filedialog.askopenfilename(
         title='Select file to open',
         filetypes=[('NXS file', '.nxs'),
@@ -88,7 +88,32 @@ def select_hdf_file(parent, initial_directory: str | None = None) -> str | None:
     return filename
 
 
-def select_folder(parent, initial_directory: str | None = None):
+def select_hdf_files(parent, initial_directory: str | None = None) -> list[str]:
+    """Select HDF file using filedialog"""
+    filenames = filedialog.askopenfilenames(
+        title='Select file to open',
+        filetypes=[('NXS file', '.nxs'),
+                   ('HDF file', '.h5'), ('HDF file', '.hdf'), ('HDF file', '.hdf5'),
+                   ('All files', '.*')],
+        parent=parent,
+        initialdir=initial_directory
+    )
+    good, bad = [], []
+    for filename in filenames:
+        if is_hdf5(filename):
+            good.append(filename)
+        else:
+            bad.append(filename)
+    if bad:
+        messagebox.showwarning(
+            title='Incorrect File Type',
+            message=f"These files can't be read by h5py: \n  " + '\n  '.join(bad),
+            parent=parent
+        )
+    return good
+
+
+def select_folder(parent, initial_directory: str | None = None) -> str | None:
     """Select folder"""
     foldername = filedialog.askdirectory(
         initialdir=initial_directory,
@@ -99,8 +124,35 @@ def select_folder(parent, initial_directory: str | None = None):
     return foldername
 
 
+def save_script(parent, initial_directory: str | None = None, initialfile: str = 'script.py'):
+    """Get save location"""
+    filename = filedialog.asksaveasfilename(
+        initialdir=initial_directory,
+        title='Save Python script',
+        initialfile=initialfile,
+        defaultextension='.py',
+        filetypes=[('Python Script', '.py')],
+        parent=parent,
+    )
+    return filename
+
+
+def save_notebook(parent, initial_directory: str | None = None, initialfile: str = 'notebook.ipynb') -> str | None:
+    """Get save location"""
+    filename = filedialog.asksaveasfilename(
+        initialdir=initial_directory,
+        title='Save notebook...',
+        initialfile=initialfile,
+        defaultextension='.ipynb',
+        filetypes=[('IPython Notebook', '.ipynb')],
+        parent=parent,
+    )
+    return filename
+
+
 def check_new_file(parent, filename: str | None = None) -> str | None:
     """Check if filename is new and writable"""
+    filename = filename or ''
     path, name = os.path.split(filename)
     if not os.access(path, os.W_OK):
         show_error(f"new file cannot be written as path is not writable: '{path}'",

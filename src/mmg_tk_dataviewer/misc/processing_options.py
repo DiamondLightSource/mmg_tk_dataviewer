@@ -10,7 +10,7 @@ from mmg_toolbox.utils.env_functions import (get_notebook_directory, open_termin
 from mmg_toolbox.scripts.scripts import (generate_script, create_notebook,
                                          SCRIPTS, NOTEBOOKS, R)
 from .config import C
-from .functions import check_new_file
+from .functions import check_new_file, save_notebook, save_script
 from .jupyter import launch_jupyter_notebook, terminate_notebooks
 from ..apps.multi_scan_analysis import create_multi_scan_analysis
 from ..apps.python_editor import create_python_editor
@@ -19,18 +19,31 @@ from ..xmcd_visualiser import create_xmcd_visualiser
 
 def create_script_from_template(root: tk.Misc, template: str = 'example', directory: str | None = None,
                                 config: dict | None = None, **replacements):
-    proc_dir = directory or config[C.current_proc]
-    script_name = os.path.join(proc_dir, f"{template}.py")
-    new_file = check_new_file(root, script_name)
+    config = config or {}
+    directory = directory or config.get(C.current_proc)
+    if directory:
+        script_name = os.path.join(directory, f"{template}.py")
+        new_file = check_new_file(root, script_name)
+    else:
+        new_file = save_script(root, initialfile=template + '.py')
+        if new_file is None:
+            return
     script = generate_script(template, **replacements)
     create_python_editor(script, root, config, filename=new_file)
 
 
 def create_notebook_from_template(root: tk.Misc, template: str = 'example', directory: str | None = None,
                                   config: dict | None = None, **replacements):
-    proc_dir = directory or config[C.current_proc]
-    script_name = os.path.join(proc_dir, f"{template}.ipynb")
-    new_file = check_new_file(root, script_name)
+    config = config or {}
+    directory = directory or config.get(C.current_proc)
+    if directory:
+        script_name = os.path.join(directory, f"{template}.py")
+        new_file = check_new_file(root, script_name)
+    else:
+        new_file = save_notebook(root, initialfile=template + '.ipynb')
+
+    if new_file is None:
+        return
     create_notebook(new_file, template, **replacements)
     response = askokcancel(
         parent=root,
@@ -83,7 +96,7 @@ def generate_processing_menu(parent, config: dict, directory: str | None = None,
         filenames = scan_files_getter()
         scan_numbers = ', '.join(str(get_scan_number(f)) for f in filenames)
         create_xmcd_visualiser(parent=parent, config=config, data_directory=directory,
-                               scan_range_str=scan_numbers)
+                               scan_range_str=scan_numbers, filenames=filenames)
 
     def replacements():
         values = {

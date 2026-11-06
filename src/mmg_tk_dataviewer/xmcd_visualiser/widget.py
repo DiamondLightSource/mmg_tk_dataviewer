@@ -20,8 +20,8 @@ class XMCDVisualiser:
     widget = XMCD_Visualiser(root, 'initial/folder', config)
     """
 
-    def __init__(self, root: tk.Misc, scan_range_str: str = None,
-                 pairs: list[tuple[int, int]] = None, config: dict | None = None):
+    def __init__(self, root: tk.Misc, scan_range_str: str = None, filenames: list[str] | None = None,
+                 pairs: list[tuple[int, int]] | None = None, config: dict | None = None):
         from .average_tab import Average
         from .processed_data_plot import Comparison
         from .sum_rules_tab import SumRules
@@ -56,3 +56,5 @@ class XMCDVisualiser:
         if pairs:
             self.average.pair_selector.set_pair_numbers(pairs)
             self.average.plot_pairs()
+        if filenames:
+            self.average.pair_selector.add_files(*filenames)

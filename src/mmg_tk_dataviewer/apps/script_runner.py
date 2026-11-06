@@ -1,7 +1,7 @@
 import tkinter as tk
 
-from mmg_toolbox.tkguis.misc.config import get_config
-from mmg_toolbox.tkguis.misc.styles import RootWithStyle, create_root
+from ..misc.config import get_config
+from ..misc.styles import RootWithStyle, create_root
 
 
 def create_script_runner(parent: tk.Misc | None = None, config: dict | None = None) -> RootWithStyle:

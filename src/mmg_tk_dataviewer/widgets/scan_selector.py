@@ -166,6 +166,7 @@ class _ScanSelector(CanvasTreeview):
             filepath = self.tree.set(iid, 'filepath')
             if os.path.isfile(filepath):
                 filenames.append(filepath)
+        filenames.sort()
         return filenames
 
     def get_metadata(self) -> list[dict[str, str]]:

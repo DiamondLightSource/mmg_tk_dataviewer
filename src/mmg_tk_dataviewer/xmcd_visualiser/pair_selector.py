@@ -1,3 +1,10 @@
+"""
+pair_selector.py
+The PairSelector widget controls the scan pair panel, loading scan files as spectra and determining pair type.
+Pair data is loaded and stored by Average.load_pair
+"""
+
+
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
@@ -8,8 +15,7 @@ from mmg_toolbox.xas.spectra import BACKGROUND_FUNCTIONS
 from ..misc.functions import create_scrollable_window, entry_with_placeholder
 from ..misc.config import C
 from .average_tab import Average
-from .processed_data_plot import load_pairs
-
+from .utils import load_pairs
 
 BACKGROUNDS = ['None'] + list(BACKGROUND_FUNCTIONS)
 
@@ -151,7 +157,8 @@ class PairSelector:
             self._base.plot_pairs()
 
     def btn_load_file(self):
-        folder, pairs = load_pairs(self.root, self._base.config[C.current_proc])
+        default_folder = self._base.config.get(C.current_proc) or self._base.config.get(C.current_dir, '')
+        folder, pairs = load_pairs(self.root, default_folder)
         if folder:
             self._base.add_exp_path(folder)
             self.set_pair_numbers(pairs)

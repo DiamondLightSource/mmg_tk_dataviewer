@@ -1,7 +1,7 @@
 import tkinter as tk
 
-from mmg_toolbox.tkguis.misc.config import get_config, C
-from mmg_toolbox.tkguis.misc.styles import create_root, RootWithStyle
+from ..misc.config import get_config, C
+from ..misc.styles import create_root, RootWithStyle
 
 
 def list_scans(*file_list: str, parent: tk.Misc | None = None, config: dict | None = None,

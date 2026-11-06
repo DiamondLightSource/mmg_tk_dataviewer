@@ -5,7 +5,7 @@ Convenience wrapper for ttk.Treeview
 import tkinter as tk
 from tkinter import ttk
 
-from mmg_toolbox.tkguis.misc.functions import post_right_click_menu
+from ..misc.functions import post_right_click_menu
 
 
 TreeViewColumn = tuple[str, str, int, bool, str | None]  # name, title, width, reverse, sort_col
@@ -23,14 +23,11 @@ def treeview_sort_column(treeview: ttk.Treeview, col: str, reverse: bool, sort_c
     """
     if sort_col is None:
         sort_col = col
-    
-    c_item = lambda iid: treeview.item(iid)['text'] if col == '#0' else lambda iid: treeview.set(iid, col)
-    # if col == "#0":
-    #     def get_item(iid):
-    #         return treeview.item(iid)['text']
-    # else:
-    #     def get_item(iid):
-    #         return treeview.set(iid, col)
+
+    if col == '#0':
+        c_item = lambda iid: treeview.item(iid)['text']
+    else:
+        c_item = lambda iid: treeview.set(iid, col)
 
     items = [(c_item(iid), iid) for iid in treeview.get_children('')]
     items.sort(reverse=reverse)

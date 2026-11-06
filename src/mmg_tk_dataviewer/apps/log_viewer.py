@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from mmg_toolbox.tkguis.misc.styles import create_root
+from ..misc.styles import create_root
 
 
 def create_log_viewer(filename: str, parent: tk.Misc | None = None):

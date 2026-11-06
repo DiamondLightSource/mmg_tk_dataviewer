@@ -58,7 +58,7 @@ class PairSelector:
         modes = ['TEY', 'TFY']
         backgrounds = BACKGROUNDS
         self.scan_range = tk.StringVar(self.root, scan_range_str)
-        self.dls_loader = tk.BooleanVar(self.root, False)
+        self.dls_loader = tk.BooleanVar(self.root, True)
         self.mode_option = tk.StringVar(self.root, modes[0])
         self.bkg_option = tk.StringVar(self.root, backgrounds[0])
         self.pair_numbers: list[tuple[tk.IntVar, tk.IntVar, Callable]] = []
@@ -83,7 +83,12 @@ class PairSelector:
         # Scan List
         frm = ttk.LabelFrame(self.root, text='Scans', relief='groove')
         frm.grid(row=1, column=0, **grid_options)
-        self.table = ScanTable(frm, config=self._base.config)
+        # TODO: improve this or replace ScanTable with SpectraTable
+        table_config = {
+            C.metadata_list: {'pol': '{polarisation}', 'cmd': '{scan_command}'}
+        }
+        self.table = ScanTable(frm, config=table_config)
+        self.table.tree.column('pol', width=30)
         ttk.Button(frm, text='Select', command=self.btn_select_scans).pack(side='top', fill='x')
 
         # Pairs

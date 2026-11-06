@@ -82,7 +82,8 @@ class Average:
 
     def process_pair(self, scan_number1: int, scan_number2: int,
                      background: str) -> tuple[SpectraContainer, SpectraContainer]:
-        scan1, scan2 = self.load_pair(scan_number1, scan_number2, dls_loader=self.use_dls_loader)
+        dls_loader = self._base.average.pair_selector.dls_loader.get()
+        scan1, scan2 = self.load_pair(scan_number1, scan_number2, dls_loader=use_dls_loader)
         scan1_proc = scan1.divide_by_preedge()
         scan2_proc = scan2.divide_by_preedge()
         if background != 'None':

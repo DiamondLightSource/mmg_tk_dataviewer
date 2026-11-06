@@ -10,7 +10,7 @@ dependencies = [
     "h5py>=3.16.0",
     "pillow",
     "matplotlib",
-    "mmg-toolbox==0.7.0",
+    "mmg-toolbox",
 ]
 authors = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
 maintainers = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
@@ -42,4 +42,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv.sources]
+mmg-toolbox = { path = "../mmg_toolbox", editable = true }
 

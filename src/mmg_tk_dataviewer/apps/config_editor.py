@@ -3,6 +3,8 @@ tk widget for editing the Config file
 """
 import os
 
+from mmg_toolbox.beamline_metadata.config import BEAMLINE_CONFIG
+
 from ..misc.styles import tk, ttk, create_root
 from ..misc.logging import create_logger
 from ..misc.functions import topmenu
@@ -30,7 +32,11 @@ class ConfigEditor:
                 'Reset': self.reset_config,
                 'Delete config file': self.delete_config,
                 'View config file': self.view_config,
-            }
+            },
+            'Copy from Beamline': {
+                bl: lambda x=bl: self.choose_beamline(x)
+                for bl in BEAMLINE_CONFIG
+            },
         }
 
         topmenu(self.root, menu)
@@ -75,7 +81,7 @@ class ConfigEditor:
         value = self.config.get(config_name, '')
         variable = tk.StringVar(self.root, value)
         get_type = str if value is None else type(value)
-        self.config_setters[config_name] = lambda name=config_name: str(self.config.get(name, ''))
+        self.config_setters[config_name] = lambda name=config_name: variable.set(str(self.config.get(name, '')))
         self.config_getters[config_name] = lambda: get_type(variable.get())
 
         frm = ttk.Frame(self.window)
@@ -168,7 +174,6 @@ class ConfigEditor:
     def set_from_config(self, config: dict):
         self.config.update(config)
         for name, setter in self.config_setters.items():
-            print(name, self.config[name])
             setter()
 
     def reset_config(self):
@@ -209,6 +214,11 @@ class ConfigEditor:
 
     def metadata_list_window(self):
         MetadataListEditor(self.root, self.config)
+
+    def choose_beamline(self, beamline: str):
+        bl_config = BEAMLINE_CONFIG[beamline].copy()
+        bl_config[C.beamline] = self.config_getters[C.beamline]()  # Don't change beamline
+        self.set_from_config(bl_config)
 
 
 class MetadataListEditor:

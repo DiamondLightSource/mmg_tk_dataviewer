@@ -98,7 +98,7 @@ class MultiScanAnalysis:
         ttk.Button(line, text='Multi-Plot', command=self.multiplot, width=10).pack(side='left')
         ttk.Button(line, text='Plot 2D', command=self.plot2d, width=10).pack(side='left')
         ttk.Button(line, text='Plot 3D', command=self.plot3d, width=10).pack(side='left')
-        ttk.Button(line, text='Plot Surf', command=self.plot3d, width=10).pack(side='left')
+        ttk.Button(line, text='Plot Surf', command=self.plot_surf, width=10).pack(side='left')
 
         line = ttk.Frame(self.root)
         line.pack(side='top', expand=True, pady=8, padx=4)

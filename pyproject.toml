@@ -11,7 +11,7 @@ dependencies = [
     "pillow",
     "matplotlib",
     "mmg-toolbox",
-    "PySide6",
+    "PySide6<6.10",  # 6.10+ wheels need glibc 2.34; RHEL 8 has 2.28
 ]
 authors = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
 maintainers = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]

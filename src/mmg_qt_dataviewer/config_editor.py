@@ -8,19 +8,20 @@ from PySide6 import QtWidgets
 
 from .config import C, COLORMAPS, BEAMLINE_CONFIG, default_config, save_config
 from .common import add_menus, show_window, edit_text, TextWindow, button
+from .style import card, form, row, grid, fit_to_screen, scrollable
 
 # config name: label, for simple text settings
 TEXT_SETTINGS = {
     C.conf_file: 'Config File',
     C.beamline: 'Beamline',
-    C.normalise_factor: 'Normalise',
+    C.normalise_factor: 'Normalise by',
     C.plot_marker: 'Marker',
     C.plot_linestyle: 'Line style',
     C.metadata_label: 'Metadata label',
     C.scan_title: 'Plot title',
     C.default_metadata: 'Default metadata',
 }
-BOOL_SETTINGS = {C.image_log: 'Image log', C.image_flip_y: 'Image flip y', C.image_flip_x: 'Image flip x'}
+BOOL_SETTINGS = {C.image_log: 'Log scale', C.image_flip_y: 'Flip y', C.image_flip_x: 'Flip x'}
 # config name: label, for settings stored as JSON (dicts and lists)
 JSON_SETTINGS = {C.metadata_list: 'Metadata columns', C.roi: 'Image ROIs'}
 
@@ -37,25 +38,29 @@ class ConfigEditor(QtWidgets.QMainWindow):
         self.colormap = QtWidgets.QComboBox()
         self.colormap.addItems(COLORMAPS)
 
-        form = QtWidgets.QFormLayout()
-        for name, label in TEXT_SETTINGS.items():
-            form.addRow(label, self.text[name])
-        form.addRow('Default colormap', self.colormap)
-        bools = QtWidgets.QHBoxLayout()
-        for widget in self.bools.values():
-            bools.addWidget(widget)
-        form.addRow('Image', bools)
-        form.addRow('Metadata expression', button('Edit', lambda: self.edit(C.metadata_string)))
-        for name, label in JSON_SETTINGS.items():
-            form.addRow(label, button('Edit', lambda n=name: self.edit_json(n)))
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addWidget(button('Update', self.update_config, self))
-        buttons.addWidget(button('Save', self.save, self))
+        def fields(*names):
+            return form(*[(TEXT_SETTINGS[name], self.text[name]) for name in names])
+        images = fields()
+        images.addRow(QtWidgets.QLabel('Colormap', objectName='muted'), self.colormap)
+        images.addRow(QtWidgets.QLabel('Options', objectName='muted'), row(*self.bools.values(), None))
+        advanced = grid([button('Metadata expression…', lambda: self.edit(C.metadata_string))] + [
+            button(f"{label}…", lambda n=name: self.edit_json(n)) for name, label in JSON_SETTINGS.items()
+        ], columns=3)
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
-        layout.addLayout(form)
-        layout.addLayout(buttons)
-        self.setCentralWidget(central)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+        layout.addWidget(card(layout=fields(C.beamline, C.conf_file, C.normalise_factor, C.default_metadata),
+                              title='General'))
+        layout.addWidget(card(layout=fields(C.scan_title, C.metadata_label, C.plot_marker, C.plot_linestyle),
+                              title='Plots'))
+        layout.addWidget(card(layout=images, title='Images'))
+        layout.addWidget(card(layout=advanced, title='Advanced'))
+        layout.addStretch()
+        layout.addLayout(row(None, button('Apply', self.update_config, self),
+                             button('Save', self.save, self, primary=True)))
+        self.setCentralWidget(scrollable(central))
+        fit_to_screen(self, 620, 720)
 
         add_menus(self, {
             'Config': {

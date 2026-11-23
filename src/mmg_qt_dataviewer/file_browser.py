@@ -8,6 +8,7 @@ import hdfmap
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QDir
 
+from .style import fit_to_screen
 from .common import add_menus, show_window, select_folder, button, open_terminal, start_jupyter
 
 TITLES = {'any': 'File Browser', 'nexus': 'NeXus File Browser', 'jupyter': 'Jupyter Notebook Browser'}
@@ -58,6 +59,7 @@ class FileBrowser(QtWidgets.QMainWindow):
         bottom.addWidget(self.show_hidden)
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.addLayout(top)
         layout.addLayout(bottom)
         layout.addWidget(self.tree)
@@ -68,7 +70,7 @@ class FileBrowser(QtWidgets.QMainWindow):
             layout.addLayout(row)
             layout.addWidget(self.dataset_value)
         self.setCentralWidget(central)
-        self.resize(900, 700)
+        fit_to_screen(self, 900, 700)
         add_menus(self, {})
         self.set_folder(folder or os.path.expanduser('~'))
 

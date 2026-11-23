@@ -8,6 +8,7 @@ from PySide6 import QtWidgets
 
 from mmg_toolbox.utils.env_functions import get_dls_visits, get_notebook_directory, scan_number_mapping
 from .config import BEAMLINE_CONFIG
+from .style import fit_to_screen
 from .common import add_menus, show_window
 
 
@@ -38,7 +39,7 @@ class VisitViewer(QtWidgets.QMainWindow):
                 QtWidgets.QTreeWidgetItem(parent, [visit, latest(scans), latest(notebooks), folder])
             parent.setExpanded(True)
         self.setCentralWidget(self.tree)
-        self.resize(1000, 600)
+        fit_to_screen(self, 1000, 600)
         add_menus(self, {})
 
     def on_double_click(self, item: QtWidgets.QTreeWidgetItem):

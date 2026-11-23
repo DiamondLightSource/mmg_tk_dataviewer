@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 
 from mmg_toolbox.utils.file_functions import list_files, get_scan_number, display_timestamp
 from .config import C
-from .common import select_folder, button
+from .common import select_folder, tool_button
 
 PATH_ROLE = Qt.UserRole
 
@@ -31,22 +31,26 @@ class ScanList(QtWidgets.QWidget):
         self.tree = QtWidgets.QTreeWidget()
         self.tree.setHeaderLabels(['Scan', 'Modified', *self.metadata])
         self.tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.tree.setAlternatingRowColors(True)
+        self.tree.setUniformRowHeights(True)
         self.tree.itemSelectionChanged.connect(lambda: self.selectionChanged.emit(self.selected_files()))
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._context_menu)
 
-        self.number = QtWidgets.QSpinBox()
+        self.number = QtWidgets.QSpinBox(toolTip='Go to scan number', buttonSymbols=QtWidgets.QSpinBox.NoButtons)
         self.number.setRange(0, 10**9)
+        self.number.setMaximumWidth(90)
         self.number.editingFinished.connect(lambda: self.select_scan(self.number.value()))
-        self.search = QtWidgets.QLineEdit(placeholderText='Search...')
+        self.search = QtWidgets.QLineEdit(placeholderText='Filter scans…', clearButtonEnabled=True)
         self.search.textChanged.connect(self._filter)
 
         top = QtWidgets.QHBoxLayout()
+        top.setSpacing(4)
+        top.addWidget(tool_button('‹', lambda: self.step(-1), 'Previous scan'))
         top.addWidget(self.number)
-        top.addWidget(button('-', lambda: self.step(-1)))
-        top.addWidget(button('+', lambda: self.step(1)))
+        top.addWidget(tool_button('›', lambda: self.step(1), 'Next scan'))
         top.addWidget(self.search, stretch=1)
-        top.addWidget(button('Add Folder', self.browse_folder))
+        top.addWidget(tool_button('+ Folder', self.browse_folder, 'Add a folder of scans'))
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(top)

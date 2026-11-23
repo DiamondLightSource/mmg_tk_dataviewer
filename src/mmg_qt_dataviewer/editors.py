@@ -9,6 +9,7 @@ from PySide6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QTextDocu
 
 from mmg_toolbox.utils.env_functions import run_python_script
 from mmg_toolbox.utils.file_reader import read_gda_terminal_log
+from .style import fit_to_screen
 from .common import add_menus, show_window, monospace, show_error
 
 
@@ -60,7 +61,7 @@ class PythonEditor(QtWidgets.QMainWindow):
         layout.addWidget(self.text)
         layout.addWidget(run)
         self.setCentralWidget(central)
-        self.resize(800, 700)
+        fit_to_screen(self, 800, 700)
         add_menus(self, {'File': {
             'New script': lambda: show_window(PythonEditor()),
             'Open': self.open,
@@ -130,7 +131,7 @@ class LogViewer(QtWidgets.QMainWindow):
         layout.addLayout(row)
         layout.addWidget(self.tabs)
         self.setCentralWidget(central)
-        self.resize(1000, 700)
+        fit_to_screen(self, 1000, 700)
         add_menus(self, {})
 
     def find(self):

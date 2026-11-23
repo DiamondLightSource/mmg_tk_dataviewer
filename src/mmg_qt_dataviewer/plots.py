@@ -7,13 +7,51 @@ import numpy as np
 import hdfmap
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction
 from matplotlib.widgets import RectangleSelector
 
 from mmg_toolbox.utils.file_functions import get_scan_number, read_tiff
 from mmg_toolbox.fitting import multipeakfit
 from mmg_toolbox.fitting.models import PEAK_MODELS
 from .config import C, COLORMAPS
-from .common import PlotCanvas, button, labelled, show_window, select_hdf_files
+from .style import fit_to_screen, CURRENT
+from .common import PlotCanvas, show_window, select_hdf_files
+
+
+def menu_button(text: str, menu: QtWidgets.QMenu, tooltip: str = '') -> QtWidgets.QToolButton:
+    """Tool button that opens a menu"""
+    btn = QtWidgets.QToolButton(text=text + ' ▾', toolTip=tooltip)
+    btn.setMenu(menu)
+    btn.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+    return btn
+
+
+def checkable(menu: QtWidgets.QMenu, text: str, checked: bool = False) -> QAction:
+    action = menu.addAction(text)
+    action.setCheckable(True)
+    action.setChecked(checked)
+    return action
+
+
+def widget_action(menu: QtWidgets.QMenu, layout: QtWidgets.QLayout):
+    """Put a layout of widgets inside a menu"""
+    widget = QtWidgets.QWidget()
+    widget.setLayout(layout)
+    layout.setContentsMargins(12, 4, 12, 4)
+    action = QtWidgets.QWidgetAction(menu)
+    action.setDefaultWidget(widget)
+    menu.addAction(action)
+
+
+def axis_row(*pairs) -> QtWidgets.QHBoxLayout:
+    """Row of (label, widget, extra) for compact axis selection"""
+    row = QtWidgets.QHBoxLayout()
+    for label, widget, extra in pairs:
+        row.addWidget(QtWidgets.QLabel(label, objectName='muted'))
+        row.addWidget(widget, stretch=1)
+        row.addWidget(extra)
+        row.addSpacing(8)
+    return row
 
 
 def load_xy(hdf_map: hdfmap.NexusMap, filename: str, x_expr: str, y_expr: str) -> tuple[np.ndarray, np.ndarray]:
@@ -39,21 +77,36 @@ class LinePlot(QtWidgets.QWidget):
         self.files: list[str] = []
         self.map: hdfmap.NexusMap | None = None
 
-        self.x_axis = QtWidgets.QComboBox(editable=True)
-        self.y_axis = QtWidgets.QComboBox(editable=True)
-        self.fix_x = QtWidgets.QCheckBox('Fix')
-        self.fix_y = QtWidgets.QCheckBox('Fix')
-        self.options = {name: QtWidgets.QCheckBox(name) for name in ['Normalise', 'Log', 'Diff', 'Inverse']}
-        self.fit = QtWidgets.QCheckBox('Fit')
+        self.x_axis = QtWidgets.QComboBox(editable=True, minimumContentsLength=8)
+        self.y_axis = QtWidgets.QComboBox(editable=True, minimumContentsLength=8)
+        self.fix_x = QtWidgets.QCheckBox('Fix', toolTip='Keep this x-axis when changing scan')
+        self.fix_y = QtWidgets.QCheckBox('Fix', toolTip='Keep this y-axis when changing scan')
+        self.error = QtWidgets.QLabel(objectName='error', wordWrap=True)
+        self.plot = PlotCanvas(self)
+        self.index_line = None
+        self.y_list = QtWidgets.QListWidget(toolTip='Select one or more values to plot (Ctrl/Shift for several)')
+        self.y_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.y_list.setMaximumWidth(220)
+        self.y_list.itemSelectionChanged.connect(self.on_list_select)
+
+        # signal options menu
+        options_menu = QtWidgets.QMenu(self)
+        self.options = {name: checkable(options_menu, name) for name in ['Normalise', 'Log', 'Diff', 'Inverse']}
+        # fit: click to toggle, arrow for settings
         self.n_peaks = QtWidgets.QSpinBox(minimum=1, maximum=10, value=1)
         self.model = QtWidgets.QComboBox()
         self.model.addItems(list(PEAK_MODELS))
-        self.error = QtWidgets.QLabel(styleSheet='color: red')
-        self.plot = PlotCanvas(self)
-        self.index_line = None
-        self.y_list = QtWidgets.QListWidget(maximumWidth=200)
-        self.y_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.y_list.itemSelectionChanged.connect(self.on_list_select)
+        fit_menu = QtWidgets.QMenu(self)
+        fit_form = QtWidgets.QFormLayout()
+        fit_form.addRow('Peaks', self.n_peaks)
+        fit_form.addRow('Model', self.model)
+        widget_action(fit_menu, fit_form)
+        self.fit = QtWidgets.QToolButton(text='Fit', checkable=True, toolTip='Fit peaks to the first line')
+        self.fit.setMenu(fit_menu)
+        self.fit.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
+        analysis_menu = QtWidgets.QMenu(self)
+        analysis_menu.addAction('Multi-Scan Analysis').triggered.connect(self.open_multi_scan)
+        analysis_menu.addAction('Peak Fitting').triggered.connect(self.open_peak_fit)
 
         self.x_axis.lineEdit().returnPressed.connect(self.update_plot)
         self.x_axis.activated.connect(self.update_plot)
@@ -64,21 +117,13 @@ class LinePlot(QtWidgets.QWidget):
         self.n_peaks.valueChanged.connect(self.update_plot)
         self.model.currentTextChanged.connect(self.update_plot)
 
-        options = QtWidgets.QHBoxLayout()
-        for widget in self.options.values():
-            options.addWidget(widget)
-        options.addStretch()
-        options.addWidget(self.fit)
-        options.addWidget(self.n_peaks)
-        options.addWidget(self.model)
-        options.addWidget(button('Multi-Scan', self.open_multi_scan, self))
-        options.addWidget(button('Peak Fitting', self.open_peak_fit, self))
+        self.plot.toolbar_row.addWidget(menu_button('Options', options_menu, 'Signal options'))
+        self.plot.toolbar_row.addWidget(self.fit)
+        self.plot.toolbar_row.addWidget(menu_button('Analyse', analysis_menu, 'Open analysis windows'))
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(labelled('X:', self.x_axis, self.fix_x))
-        layout.addLayout(labelled('Y:', self.y_axis, self.fix_y))
-        layout.addLayout(options)
+        layout.addLayout(axis_row(('X', self.x_axis, self.fix_x), ('Y', self.y_axis, self.fix_y)))
         plot_row = QtWidgets.QHBoxLayout()
         plot_row.addWidget(self.plot, stretch=1)
         plot_row.addWidget(self.y_list)
@@ -169,16 +214,16 @@ class LinePlot(QtWidgets.QWidget):
             if self.fit.isChecked():
                 x, y, label = data[0]
                 result = multipeakfit(x, y, npeaks=self.n_peaks.value(), model=self.model.currentText())
-                ax.plot(*result.fit_data(), 'k--', label='fit')
+                ax.plot(*result.fit_data(), '--', color=CURRENT['muted'], label='fit')
             with hdfmap.load_hdf(self.files[0]) as hdf:
-                ax.set_title(self.map.format_hdf(hdf, self.config.get(C.scan_title, '{filename}')), fontsize=9)
+                ax.set_title(self.map.format_hdf(hdf, self.config.get(C.scan_title, '{filename}')), fontsize=10)
             ax.set_xlabel(self.x_axis.currentText())
             ax.set_ylabel(self.signal())
             if len(data) > 1 or self.fit.isChecked():
                 ax.legend(frameon=False)
         except Exception as e:
             self.error.setText(f"Error: {e}")
-        self.index_line = ax.axvline(np.nan, color='k', alpha=0.3)
+        self.index_line = ax.axvline(np.nan, color='grey', alpha=0.5)
         self.plot.draw()
 
     def set_index(self, index: int):
@@ -216,21 +261,30 @@ class ImagePlot(QtWidgets.QWidget):
         self.filename = ''
         self.map: hdfmap.NexusMap | None = None
 
-        self.detector = QtWidgets.QComboBox()
-        self.slider = QtWidgets.QSlider(Qt.Horizontal)
-        self.index = QtWidgets.QSpinBox()
-        self.value = QtWidgets.QLabel()
-        self.flip_x = QtWidgets.QCheckBox('Flip-x', checked=config.get(C.image_flip_x, False))
-        self.flip_y = QtWidgets.QCheckBox('Flip-y', checked=config.get(C.image_flip_y, True))
-        self.log = QtWidgets.QCheckBox('Log', checked=config.get(C.image_log, False))
+        self.detector = QtWidgets.QComboBox(toolTip='Detector')
+        self.slider = QtWidgets.QSlider(Qt.Horizontal, toolTip='Scan point')
+        self.index = QtWidgets.QSpinBox(toolTip='Scan point')
         self.colormap = QtWidgets.QComboBox()
         self.colormap.addItems(COLORMAPS)
         self.colormap.setCurrentText(config.get(C.default_colormap, 'viridis'))
-        self.fix_clim = QtWidgets.QCheckBox('Fix clim')
+        self.fix_clim = QtWidgets.QCheckBox('Fix')
         self.cmin = QtWidgets.QDoubleSpinBox(maximum=1e12, decimals=1)
         self.cmax = QtWidgets.QDoubleSpinBox(maximum=1e12, decimals=1, value=1000)
-        self.error = QtWidgets.QLabel(styleSheet='color: red')
+        self.error = QtWidgets.QLabel(objectName='error', wordWrap=True)
         self.plot = PlotCanvas(self)
+
+        options_menu = QtWidgets.QMenu(self)
+        self.flip_x = checkable(options_menu, 'Flip x', config.get(C.image_flip_x, False))
+        self.flip_y = checkable(options_menu, 'Flip y', config.get(C.image_flip_y, True))
+        self.log = checkable(options_menu, 'Log scale', config.get(C.image_log, False))
+        options_menu.addSeparator()
+        clim = QtWidgets.QHBoxLayout()
+        for widget in (self.fix_clim, self.cmin, self.cmax):
+            clim.addWidget(widget)
+        form = QtWidgets.QFormLayout()
+        form.addRow('Colormap', self.colormap)
+        form.addRow('Colour limits', clim)
+        widget_action(options_menu, form)
         self.selector = RectangleSelector(self.plot.ax, self._roi_drawn, useblit=True, interactive=False)
         self.selector.set_active(False)
 
@@ -244,22 +298,18 @@ class ImagePlot(QtWidgets.QWidget):
             widget.valueChanged.connect(self.update_image)
         self.colormap.currentTextChanged.connect(self.update_image)
 
-        row1 = QtWidgets.QHBoxLayout()
-        row1.addWidget(self.detector)
-        row1.addWidget(self.slider, stretch=1)
-        row1.addWidget(self.index)
-        row1.addWidget(self.value)
-        row2 = QtWidgets.QHBoxLayout()
-        for widget in (self.flip_x, self.flip_y, self.log, self.colormap, self.fix_clim, self.cmin, self.cmax):
-            row2.addWidget(widget)
-        row2.addStretch()
-        draw_roi = QtWidgets.QPushButton('Draw ROI', checkable=True)
+        draw_roi = QtWidgets.QToolButton(text='Draw ROI', checkable=True,
+                                         toolTip='Drag a rectangle on the image to add a region of interest')
         draw_roi.toggled.connect(self.selector.set_active)
-        row2.addWidget(draw_roi)
+        for widget in (self.detector, menu_button('Options', options_menu, 'Image options'), draw_roi):
+            self.plot.toolbar_row.addWidget(widget)
+        scrubber = QtWidgets.QHBoxLayout()
+        scrubber.setContentsMargins(8, 2, 8, 6)
+        scrubber.addWidget(self.slider, stretch=1)
+        scrubber.addWidget(self.index)
+        self.plot.layout().addLayout(scrubber)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(row1)
-        layout.addLayout(row2)
         layout.addWidget(self.plot, stretch=1)
         layout.addWidget(self.error)
 
@@ -314,7 +364,8 @@ class ImagePlot(QtWidgets.QWidget):
             if self.flip_y.isChecked():
                 ax.invert_yaxis()
             self.plot_rois()
-            ax.set_title(f"{self.detector.currentText()} [{self.index.value()}]", fontsize=9)
+            ax.set_title(f"{self.detector.currentText()} [{self.index.value()}]", fontsize=10)
+            ax.grid(False)
         except Exception as e:
             self.error.setText(f"Error loading image: {e}")
         self.plot.draw()
@@ -327,7 +378,7 @@ class ImagePlot(QtWidgets.QWidget):
                     ci, cj, wi, wj = self.map.eval(hdf, f"{cen_i},{cen_j},{wid_i},{wid_j}")
                     x = [cj - wj // 2, cj + wj // 2, cj + wj // 2, cj - wj // 2, cj - wj // 2]
                     y = [ci - wi // 2, ci - wi // 2, ci + wi // 2, ci + wi // 2, ci - wi // 2]
-                    self.plot.ax.plot(x, y, 'k-', lw=2, scalex=False, scaley=False)
+                    self.plot.ax.plot(x, y, '-', color='#f97316', lw=2, scalex=False, scaley=False)
                     self.plot.ax.text(max(x), min(y), name, va='bottom')
 
     def _roi_drawn(self, press, release):
@@ -359,7 +410,7 @@ class PlotWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(splitter)
         add_menus(self, {'File': {'Open': self.open_files}}, config)
         self.update_files(files)
-        self.resize(800, 800 if line and image else 500)
+        fit_to_screen(self, 800, 800 if line and image else 500)
 
     def open_files(self):
         files = select_hdf_files(self)

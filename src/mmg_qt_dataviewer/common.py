@@ -7,20 +7,29 @@ import subprocess
 import webbrowser
 
 from PySide6 import QtWidgets
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 
 from mmg_toolbox import version_info
+from .style import apply_theme, setup_fonts, style_axes, fit_to_screen
 
 DOCS_URL = 'https://diamondlightsource.github.io/mmg_toolbox'
 WINDOWS = []  # keep references to open windows so they aren't garbage collected
 
 
-def get_app() -> QtWidgets.QApplication:
-    """Return the running QApplication, creating it if required"""
-    return QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
+def get_app(theme: str = 'system') -> QtWidgets.QApplication:
+    """Return the running QApplication, creating and styling it if required"""
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        # crisp rendering at fractional scaling, e.g. 125% or 150% laptop screens
+        QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+        app = QtWidgets.QApplication(sys.argv)
+        app.setApplicationName('MMG Data Viewer')
+        setup_fonts(app)
+        apply_theme(app, theme)
+    return app
 
 
 def show_window(window: QtWidgets.QWidget) -> QtWidgets.QWidget:
@@ -37,15 +46,30 @@ def show_window(window: QtWidgets.QWidget) -> QtWidgets.QWidget:
 
 
 def monospace() -> QFont:
-    return QFontDatabase.systemFont(QFontDatabase.FixedFont)
+    font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+    font.setFamilies(['JetBrains Mono', 'Cascadia Mono', 'Consolas', 'DejaVu Sans Mono', 'Liberation Mono',
+                      'Noto Sans Mono', font.family()])
+    font.setStyleHint(QFont.Monospace)
+    return font
 
 
 def add_menus(window: QtWidgets.QMainWindow, menus: dict, config: dict | None = None):
     """
     Add menus to a main window from a nested dict
         {'File': {'Open': open_fn, 'Recent': {'a': fn_a}}}
-    The standard Config and Help menus are added at the end.
+    The standard View, Config and Help menus are added at the end.
     """
+    def set_theme(theme: str):
+        apply_theme(get_app(), theme)
+        if config is not None:  # remember the choice for next time
+            from .config import save_config
+            config['theme'] = theme
+            save_config(config)
+    menus['View'] = {**menus.get('View', {}), 'Theme': {
+        'System': lambda: set_theme('system'),
+        'Light': lambda: set_theme('light'),
+        'Dark': lambda: set_theme('dark'),
+    }}
     if config is not None:
         from .config_editor import ConfigEditor
         from .config import save_config
@@ -115,30 +139,53 @@ def labelled(label: str, widget: QtWidgets.QWidget, *extra: QtWidgets.QWidget) -
     return row
 
 
-def button(text: str, fn, parent=None) -> QtWidgets.QPushButton:
+def button(text: str, fn, parent=None, primary: bool = False) -> QtWidgets.QPushButton:
     btn = QtWidgets.QPushButton(text)
+    btn.setProperty('primary', primary)
     btn.clicked.connect(lambda *_: run_safely(parent or btn, fn))
     return btn
 
 
-class PlotCanvas(QtWidgets.QWidget):
-    """Matplotlib figure with navigation toolbar"""
+def tool_button(text: str, fn, tooltip: str = '') -> QtWidgets.QToolButton:
+    btn = QtWidgets.QToolButton(text=text, toolTip=tooltip)
+    btn.clicked.connect(lambda *_: run_safely(btn, fn))
+    return btn
+
+
+class PlotCanvas(QtWidgets.QFrame):
+    """
+    Matplotlib figure in a rounded panel, with a compact navigation toolbar.
+    Other widgets can be added to the toolbar row with plot.toolbar_row.addWidget(...)
+    """
 
     def __init__(self, parent=None, nrows: int = 1, ncols: int = 1, toolbar: bool = True):
-        super().__init__(parent)
-        self.figure = Figure(figsize=(6, 4), layout='tight')
+        super().__init__(parent, objectName='plot')
+        self.figure = Figure(figsize=(5, 3), layout='constrained')
         self.axes = self.figure.subplots(nrows, ncols, squeeze=False).flatten()
         self.ax = self.axes[0]
         self.canvas = FigureCanvasQTAgg(self.figure)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.canvas.setMinimumSize(200, 150)
+        self.toolbar_row = QtWidgets.QHBoxLayout()
+        self.toolbar_row.setContentsMargins(4, 2, 4, 0)
         if toolbar:
-            layout.addWidget(NavigationToolbar2QT(self.canvas, self))
-        layout.addWidget(self.canvas)
+            bar = NavigationToolbar2QT(self.canvas, self, coordinates=False)
+            bar.setIconSize(QSize(18, 18))
+            self.toolbar_row.addWidget(bar)
+        self.toolbar_row.addStretch()
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(0)
+        layout.addLayout(self.toolbar_row)
+        layout.addWidget(self.canvas, stretch=1)
+        self.style_axes()
+
+    def style_axes(self):
+        style_axes(self.figure, self.axes)
 
     def clear(self):
         for ax in self.axes:
             ax.clear()
+        self.style_axes()
 
     def draw(self):
         self.canvas.draw_idle()
@@ -155,7 +202,7 @@ class TextWindow(QtWidgets.QMainWindow):
         self.text.setReadOnly(not editable)
         self.text.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         self.setCentralWidget(self.text)
-        self.resize(700, 500)
+        fit_to_screen(self, 700, 500)
 
 
 def edit_text(parent, text: str, title: str = 'Edit text') -> str | None:
@@ -170,5 +217,5 @@ def edit_text(parent, text: str, title: str = 'Edit text') -> str | None:
     layout = QtWidgets.QVBoxLayout(dialog)
     layout.addWidget(edit)
     layout.addWidget(buttons)
-    dialog.resize(600, 400)
+    fit_to_screen(dialog, 600, 400)
     return edit.toPlainText() if dialog.exec() else None

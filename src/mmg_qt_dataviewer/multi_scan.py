@@ -9,7 +9,8 @@ from mmg_toolbox.utils.experiment import Experiment
 from mmg_toolbox.utils.env_functions import scan_number_mapping
 from mmg_toolbox.scripts.scripts import SCRIPTS, NOTEBOOKS
 from .config import C
-from .common import add_menus, show_window, select_folder, button, labelled
+from .common import add_menus, show_window, select_folder, button
+from .style import card, form, row, grid, scrollable, fit_to_screen
 
 
 class ScanRange(QtWidgets.QWidget):
@@ -18,23 +19,23 @@ class ScanRange(QtWidgets.QWidget):
     def __init__(self, folder_getter, scan_numbers: list[int] | None = None, parent=None):
         super().__init__(parent)
         self.folder_getter = folder_getter
-        self.text = QtWidgets.QPlainTextEdit(str(list(scan_numbers or [])), maximumHeight=80)
+        self.text = QtWidgets.QPlainTextEdit(str(list(scan_numbers or [])), maximumHeight=70)
         self.text.setPlaceholderText('e.g. [1234, 1235] or range(1234, 1240) or -1 for the last scan')
-        self.first = QtWidgets.QSpinBox(maximum=10**9)
-        self.last = QtWidgets.QSpinBox(maximum=10**9)
-        self.step = QtWidgets.QSpinBox(minimum=1, maximum=10**6, value=1)
-
-        row = QtWidgets.QHBoxLayout()
-        for label, widget in [('First:', self.first), ('Last:', self.last), ('Step:', self.step)]:
-            row.addWidget(QtWidgets.QLabel(label))
-            row.addWidget(widget)
-        row.addWidget(button('Generate', self.generate))
-        row.addWidget(button('All scans', self.all_scans, self))
-        row.addWidget(button('Select...', self.select_scans, self))
+        self.first = QtWidgets.QSpinBox(maximum=10**9, toolTip='First scan')
+        self.last = QtWidgets.QSpinBox(maximum=10**9, toolTip='Last scan')
+        self.step = QtWidgets.QSpinBox(minimum=1, maximum=10**6, value=1, toolTip='Step')
+        range_row = QtWidgets.QHBoxLayout()
+        for widget in (self.first, QtWidgets.QLabel('to', objectName='muted'), self.last,
+                       QtWidgets.QLabel('step', objectName='muted'), self.step):
+            range_row.addWidget(widget)
+        range_row.addWidget(button('Generate', self.generate))
+        range_row.addStretch()
+        range_row.addWidget(button('All scans', self.all_scans, self))
+        range_row.addWidget(button('Choose…', self.select_scans, self))
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(row)
         layout.addWidget(self.text)
+        layout.addLayout(range_row)
 
     def generate(self):
         self.text.setPlainText(f"range({self.first.value()}, {self.last.value() + 1}, {self.step.value()})")
@@ -58,7 +59,7 @@ class ScanRange(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(dialog)
         layout.addWidget(scans)
         layout.addWidget(ok)
-        dialog.resize(800, 600)
+        fit_to_screen(dialog, 800, 600)
         if dialog.exec():
             self.text.setPlainText(str(sorted(get_scan_number(f) for f in scans.selected_files())))
 
@@ -90,34 +91,38 @@ class MultiScanAnalysis(QtWidgets.QMainWindow):
         self.script.addItems([f"script: {s}" for s in SCRIPTS] + [f"notebook: {n}" for n in NOTEBOOKS])
 
         def browse(line_edit):
-            return button('Browse', lambda: line_edit.setText(select_folder(self, line_edit.text()) or line_edit.text()))
+            def fn():
+                line_edit.setText(select_folder(self, line_edit.text()) or line_edit.text())
+            return row(line_edit, button('Browse', fn), stretch=0)
 
-        plots = QtWidgets.QHBoxLayout()
-        for name, fn in [('Plot', self.plot), ('Plot lines', self.plot_lines), ('Plot Meta', self.plot_metadata),
-                         ('Multi-Plot', self.multi_plot), ('Plot 2D', self.plot_2d), ('Plot 3D', self.plot_3d),
-                         ('Plot Surf', self.plot_surf)]:
-            plots.addWidget(button(name, fn, self))
-        processing = QtWidgets.QHBoxLayout()
-        processing.addWidget(button('Fits', self.open_peak_fit, self))
-        processing.addWidget(button('Convert to dat', self.convert_to_dat, self))
-        processing.addWidget(button('XMCD', self.open_xmcd, self))
-        processing.addStretch()
-        processing.addWidget(self.script)
-        processing.addWidget(button('Create', self.create_from_template, self))
+        plots = grid([button(name, fn, self, primary=(name == 'Plot')) for name, fn in [
+            ('Plot', self.plot), ('Plot lines', self.plot_lines), ('Plot metadata', self.plot_metadata),
+            ('Multi-plot', self.multi_plot), ('Plot 2D', self.plot_2d), ('Plot 3D', self.plot_3d),
+            ('Plot surface', self.plot_surf)]], columns=4)
+        processing = grid([
+            button('Peak fitting', self.open_peak_fit, self),
+            button('XMCD', self.open_xmcd, self),
+            button('Convert to .dat', self.convert_to_dat, self),
+        ], columns=3)
+        templates = row(self.script, button('Create', self.create_from_template, self), stretch=0)
 
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
-        layout.addLayout(labelled('Data Dir:', self.data_dir, browse(self.data_dir)))
-        layout.addLayout(labelled('Analysis Dir:', self.proc_dir, browse(self.proc_dir)))
-        layout.addLayout(labelled('X:', self.x_axis))
-        layout.addLayout(labelled('Y:', self.y_axis))
-        layout.addLayout(labelled('Metadata:', self.metadata))
-        layout.addWidget(QtWidgets.QLabel('Scan Numbers'))
-        layout.addWidget(self.range)
-        layout.addLayout(plots)
-        layout.addLayout(processing)
-        self.setCentralWidget(central)
-        self.resize(800, 400)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+        layout.addWidget(card(layout=form(
+            ('Data', browse(self.data_dir)),
+            ('Analysis', browse(self.proc_dir)),
+        ), title='Folders'))
+        layout.addWidget(card(layout=form(
+            ('X', self.x_axis), ('Y', self.y_axis), ('Metadata', self.metadata),
+        ), title='Axes'))
+        layout.addWidget(card(self.range, title='Scans'))
+        layout.addWidget(card(layout=plots, title='Plot'))
+        layout.addWidget(card(layout=form(('Open', processing), ('Template', templates)), title='Process'))
+        layout.addStretch()
+        self.setCentralWidget(scrollable(central))
+        fit_to_screen(self, 760, 760)
         add_menus(self, {}, config)
 
     def experiment(self) -> Experiment:

@@ -10,7 +10,8 @@ from mmg_toolbox.utils.experiment import Experiment
 from mmg_toolbox.fitting import multipeakfit
 from mmg_toolbox.fitting.models import PEAK_MODELS, BACKGROUND_MODELS
 from .config import C
-from .common import add_menus, PlotCanvas, button, labelled, monospace
+from .common import add_menus, PlotCanvas, button, monospace
+from .style import card, form, row, fit_to_screen, CURRENT
 from .multi_scan import ScanRange
 
 FIT_PARAMETERS = ['amplitude', 'center', 'fwhm', 'background']
@@ -49,36 +50,42 @@ class PeakFitting(QtWidgets.QMainWindow):
         self.scan_plot = PlotCanvas(self)
         self.result_plot = PlotCanvas(self, 2, 2)
 
-        options = QtWidgets.QHBoxLayout()
-        for label, widget in [('N Peaks:', self.n_peaks), ('Power:', self.power), ('Distance:', self.distance),
-                              ('Model:', self.model), ('Background:', self.background)]:
-            options.addWidget(QtWidgets.QLabel(label))
-            options.addWidget(widget)
-        actions = QtWidgets.QHBoxLayout()
-        actions.addWidget(button('Load Scans', self.load_scans, self))
-        actions.addWidget(button('Fit All', self.fit_all, self))
-        actions.addWidget(self.parameter)
-        actions.addWidget(button('Plot Results', self.plot_results, self))
+        def muted(text):
+            return QtWidgets.QLabel(text, objectName='muted')
+        options = QtWidgets.QGridLayout()
+        for n, (label, widget) in enumerate([('Peaks', self.n_peaks), ('Power', self.power),
+                                             ('Distance', self.distance), ('Model', self.model),
+                                             ('Background', self.background)]):
+            options.addWidget(muted(label), n // 3, 2 * (n % 3), Qt.AlignRight)
+            options.addWidget(widget, n // 3, 2 * (n % 3) + 1)
+        actions = row(button('Fit all', self.fit_all, self, primary=True), None,
+                      muted('Plot'), self.parameter, button('Plot results', self.plot_results, self))
 
         left = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(left)
-        left_layout.addLayout(labelled('Data Dir:', self.data_dir))
-        left_layout.addLayout(labelled('X:', self.x_axis))
-        left_layout.addLayout(labelled('Y:', self.y_axis))
-        left_layout.addLayout(labelled('Metadata:', self.metadata))
-        left_layout.addWidget(self.range)
-        left_layout.addLayout(options)
-        left_layout.addLayout(actions)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(card(layout=form(
+            ('Data', self.data_dir),
+            ('Axes', row(self.x_axis, muted('vs'), self.y_axis)),
+            ('Metadata', self.metadata),
+        ), title='Data'))
+        left_layout.addWidget(card(self.range, layout=row(None, button('Load scans', self.load_scans, self)),
+                                   title='Scans'))
+        fit_card = card(layout=options, title='Fit options')
+        fit_card.layout().addLayout(actions)
+        left_layout.addWidget(fit_card)
         left_layout.addWidget(self.table, stretch=1)
         tabs = QtWidgets.QTabWidget()
         tabs.addTab(self.scan_plot, 'Scan')
         tabs.addTab(self.result_plot, 'Results')
         tabs.addTab(self.result_text, 'Fit Report')
-        splitter = QtWidgets.QSplitter()
+        splitter = QtWidgets.QSplitter(childrenCollapsible=False)
         splitter.addWidget(left)
         splitter.addWidget(tabs)
+        splitter.setContentsMargins(10, 10, 10, 10)
+        splitter.setStretchFactor(1, 1)
         self.setCentralWidget(splitter)
-        self.resize(1400, 800)
+        fit_to_screen(self, 1500, 900)
         add_menus(self, {}, config)
         if scan_numbers:
             self.load_scans()
@@ -132,7 +139,7 @@ class PeakFitting(QtWidgets.QMainWindow):
         x, y = self.get_xy(item.data(0, Qt.UserRole))
         ax.plot(x, y, '.-', label=f"#{item.text(0)}")
         result = self.fit(item)
-        ax.plot(*result.fit_data(), 'k--', label='fit')
+        ax.plot(*result.fit_data(), '--', color=CURRENT['muted'], label='fit')
         ax.set_xlabel(self.x_axis.text())
         ax.set_ylabel(self.y_axis.text())
         ax.legend(frameon=False)

@@ -11,7 +11,15 @@ from mmg_toolbox.xas import SpectraContainerSubtraction, polarised_pairs, averag
 from mmg_toolbox.xas.spectra import BACKGROUND_FUNCTIONS
 from mmg_toolbox.xas.nxxas_loader import load_xas_scans
 from .config import C
-from .common import add_menus, PlotCanvas, button, labelled, monospace, select_folder, select_hdf_files
+from .common import add_menus, PlotCanvas, button, monospace, select_folder, select_hdf_files
+from .style import card, form, row, grid, fit_to_screen, CURRENT
+
+
+def side_by_side(*widgets: QtWidgets.QWidget) -> QtWidgets.QSplitter:
+    splitter = QtWidgets.QSplitter(childrenCollapsible=False)
+    for widget in widgets:
+        splitter.addWidget(widget)
+    return splitter
 
 
 class XMCDVisualiser(QtWidgets.QMainWindow):
@@ -31,7 +39,7 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         tabs.addTab(self.compare, 'Compare Data')
         tabs.addTab(self.sum_rules, 'Sum Rule Analysis')
         self.setCentralWidget(tabs)
-        self.resize(1400, 900)
+        fit_to_screen(self, 2400, 1400)
         add_menus(self, {'File': {
             'Set Data path': lambda: self._set('folder'),
             'Set Save path': lambda: self._set('save_folder'),
@@ -72,28 +80,30 @@ class AverageTab(QtWidgets.QWidget):
         self.pair_plot = PlotCanvas(self)
         self.average_plot = PlotCanvas(self, 3, 1)
 
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addWidget(button('Find Pairs', self.find_pairs, self))
-        buttons.addWidget(button('Plot', self.plot_pairs, self))
-        save = QtWidgets.QHBoxLayout()
-        save.addWidget(button('Add to Comparison', lambda: self.spectra and base.compare.add(self.spectra), self))
-        save.addWidget(button('Save NeXus', lambda: self.spectra and base.save(self.spectra, self.mode.currentText(), '.nxs'), self))
-        save.addWidget(button('Save CSV', lambda: self.spectra and base.save(self.spectra, self.mode.currentText(), '.csv'), self))
-        left = QtWidgets.QWidget()
+        def mode():
+            return self.mode.currentText()
+        scans = card(layout=form(
+            ('Scans', row(self.scan_range, self.dls_loader, stretch=0)),
+            ('Mode', self.mode),
+            ('Background', self.background),
+        ), title='Scans')
+        scans.layout().addLayout(row(button('Find pairs', self.find_pairs, self, primary=True),
+                                     button('Plot', self.plot_pairs, self)))
+        pairs = card(QtWidgets.QLabel('Untick a pair to exclude it from the average', objectName='muted'),
+                     self.pairs, title='Pairs')
+        output = card(layout=grid([
+            button('Add to comparison', lambda: self.spectra and base.compare.add(self.spectra), self),
+            button('Save NeXus', lambda: self.spectra and base.save(self.spectra, mode(), '.nxs'), self),
+            button('Save CSV', lambda: self.spectra and base.save(self.spectra, mode(), '.csv'), self),
+        ], columns=2), title='Average')
+        left = QtWidgets.QWidget(maximumWidth=420)
         left_layout = QtWidgets.QVBoxLayout(left)
-        left_layout.addLayout(labelled('Scans:', self.scan_range, self.dls_loader))
-        left_layout.addLayout(labelled('Mode:', self.mode))
-        left_layout.addLayout(labelled('Background:', self.background))
-        left_layout.addLayout(buttons)
-        left_layout.addWidget(QtWidgets.QLabel('Pairs (untick to exclude from the average)'))
-        left_layout.addWidget(self.pairs)
-        left_layout.addLayout(save)
-        splitter = QtWidgets.QSplitter()
-        splitter.addWidget(left)
-        splitter.addWidget(self.pair_plot)
-        splitter.addWidget(self.average_plot)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(scans)
+        left_layout.addWidget(pairs, stretch=1)
+        left_layout.addWidget(output)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(splitter)
+        layout.addWidget(side_by_side(left, self.pair_plot, self.average_plot))
         self._processed = {}  # (scan1, scan2): (processed1, processed2)
 
     def find_pairs(self):
@@ -157,7 +167,7 @@ class AverageTab(QtWidgets.QWidget):
             ax.set_title(container.name, fontsize=9)
             ax.legend(frameon=False, fontsize=7)
         mcd = self.spectra.spectra[mode]
-        ax3.plot(mcd.energy, mcd.signal, 'k')
+        ax3.plot(mcd.energy, mcd.signal, color=CURRENT['text'])
         ax3.set_title(self.spectra.label(), fontsize=9)
         ax3.set_xlabel('E [eV]')
         self.average_plot.draw()
@@ -176,17 +186,12 @@ class CompareTab(QtWidgets.QWidget):
         self.mode = QtWidgets.QComboBox()
         self.mode.currentTextChanged.connect(lambda *_: self.plot())
         self.figure = PlotCanvas(self)
-        left = QtWidgets.QWidget()
-        left_layout = QtWidgets.QVBoxLayout(left)
-        left_layout.addWidget(button('Browse Data', self.browse, self))
-        left_layout.addLayout(labelled('Mode:', self.mode))
-        left_layout.addWidget(self.list)
-        left_layout.addWidget(button('Plot 3D', self.plot_3d, self))
-        splitter = QtWidgets.QSplitter()
-        splitter.addWidget(left)
-        splitter.addWidget(self.figure)
+        left = card(self.list, layout=form(('Mode', self.mode)), title='Spectra')
+        left.layout().addLayout(row(button('Load files…', self.browse, self, primary=True),
+                                    button('Plot 3D', self.plot_3d, self)))
+        left.setMaximumWidth(420)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(splitter)
+        layout.addWidget(side_by_side(left, self.figure))
 
     def browse(self):
         for filename in select_hdf_files(self, self.base.save_folder):
@@ -241,18 +246,15 @@ class SumRulesTab(QtWidgets.QWidget):
         self.split.valueChanged.connect(lambda *_: self.update_plot())
         self.figure = PlotCanvas(self, 2, 1)
         self.report = QtWidgets.QPlainTextEdit(readOnly=True, font=monospace())
-        right = QtWidgets.QWidget()
-        right_layout = QtWidgets.QVBoxLayout(right)
-        right_layout.addLayout(labelled('Split energy [eV]:', self.split))
-        right_layout.addWidget(self.report)
-        right_layout.addWidget(button('Add to Comparison', lambda: self.spectra and base.compare.add(self.spectra), self))
-        right_layout.addWidget(button('Save NeXus', lambda: self.spectra and base.save(self.spectra, self.mode, '.nxs'), self))
-        right_layout.addWidget(button('Save CSV', lambda: self.spectra and base.save(self.spectra, self.mode, '.csv'), self))
-        splitter = QtWidgets.QSplitter()
-        splitter.addWidget(self.figure)
-        splitter.addWidget(right)
+        right = card(self.report, layout=form(('Split energy (eV)', self.split)), title='Sum rules')
+        right.layout().addLayout(grid([
+            button('Add to comparison', lambda: self.spectra and base.compare.add(self.spectra), self),
+            button('Save NeXus', lambda: self.spectra and base.save(self.spectra, self.mode, '.nxs'), self),
+            button('Save CSV', lambda: self.spectra and base.save(self.spectra, self.mode, '.csv'), self),
+        ], columns=2))
+        right.setMaximumWidth(520)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(splitter)
+        layout.addWidget(side_by_side(self.figure, right))
 
     def update_spectra(self, spectra: SpectraContainerSubtraction, mode: str):
         self.spectra, self.mode = spectra, mode

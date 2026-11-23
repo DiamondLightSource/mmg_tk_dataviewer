@@ -19,7 +19,7 @@ def run(*args: str):
         print(__doc__)
         print(f"Available beamlines: {list(BEAMLINE_CONFIG)}")
         return
-    get_app()
+    get_app(theme=get_config().get('theme', 'system'))
     beamline = next((arg for arg in args if arg in BEAMLINE_CONFIG), get_beamline())
     for arg in args:
         if os.path.exists(arg):

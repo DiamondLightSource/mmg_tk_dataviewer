@@ -7,7 +7,9 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
 from mmg_toolbox.utils.file_functions import hdfobj_string
+from .style import fit_to_screen
 from .common import add_menus, show_window, select_hdf_files, monospace, button
+from .style import card, row
 
 
 def text_view() -> QtWidgets.QPlainTextEdit:
@@ -47,34 +49,38 @@ class NexusViewer(QtWidgets.QMainWindow):
             self.tabs.addTab(view, name)
         self.tabs.currentChanged.connect(self.load_tab)
 
-        self.search = QtWidgets.QLineEdit(placeholderText='Search...')
+        self.search = QtWidgets.QLineEdit(placeholderText='Search names and paths…')
         self.search.textChanged.connect(self.filter_tree)
         self.details = text_view()
         self.expression = QtWidgets.QLineEdit(placeholderText='Expression, e.g. axes, mean(signal)')
         self.expression.returnPressed.connect(self.evaluate)
         self.output = text_view()
 
-        top = QtWidgets.QHBoxLayout()
-        top.addWidget(self.path, stretch=1)
-        top.addWidget(button('Browse', self.browse, self))
-        top.addWidget(button('Expand', self.tree.expandAll))
-        right = QtWidgets.QWidget()
-        right_layout = QtWidgets.QVBoxLayout(right)
-        right_layout.addWidget(self.search)
-        right_layout.addWidget(QtWidgets.QLabel('Details'))
-        right_layout.addWidget(self.details, stretch=2)
-        right_layout.addWidget(QtWidgets.QLabel('Evaluate Expression'))
-        right_layout.addWidget(self.expression)
-        right_layout.addWidget(self.output, stretch=1)
-        splitter = QtWidgets.QSplitter()
+        self.tree.setAlternatingRowColors(True)
+        self.namespace.setAlternatingRowColors(True)
+        self.tree.header().resizeSection(0, 220)
+        self.namespace.header().resizeSection(0, 180)
+        top = row(self.path, button('Open…', self.browse, self), button('Expand all', self.tree.expandAll),
+                  self.search, stretch=0)
+        self.search.setMaximumWidth(260)
+        self.search.setClearButtonEnabled(True)
+        right = QtWidgets.QSplitter(Qt.Vertical, childrenCollapsible=False)
+        right.addWidget(card(self.details, title='Details'))
+        right.addWidget(card(self.expression, self.output, title='Evaluate expression'))
+        right.setStretchFactor(0, 2)
+        right.setStretchFactor(1, 1)
+        splitter = QtWidgets.QSplitter(childrenCollapsible=False)
         splitter.addWidget(self.tabs)
         splitter.addWidget(right)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.addLayout(top)
         layout.addWidget(splitter)
         self.setCentralWidget(central)
-        self.resize(1200, 800)
+        fit_to_screen(self, 1500, 950)
 
         add_menus(self, {'File': {'New': lambda: show_window(NexusViewer(config=config)), 'Open': self.browse}})
         if filename:

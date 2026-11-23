@@ -10,6 +10,8 @@ from PySide6.QtCore import Qt, QTimer
 from mmg_toolbox.utils.env_functions import get_scan_notebooks, get_notebook_directory
 from mmg_toolbox.utils.file_functions import get_scan_number
 from .config import C
+from .style import fit_to_screen
+from .style import card
 from .common import add_menus, show_window, button, monospace, edit_text, run_safely, TextWindow
 from .scan_list import ScanList
 from .plots import LinePlot, ImagePlot
@@ -33,24 +35,36 @@ class DetailsPanel(QtWidgets.QWidget):
         view_action = self.text.addAction('View metadata')
         view_action.triggered.connect(self.view_metadata)
 
-        self.terminal = QtWidgets.QPlainTextEdit(readOnly=True, font=monospace(), maximumHeight=80)
-        self.command = QtWidgets.QLineEdit(placeholderText='>> expression, e.g. mean(axes)')
+        self.terminal = QtWidgets.QPlainTextEdit(readOnly=True, font=monospace())
+        self.command = QtWidgets.QLineEdit(placeholderText='>>  evaluate an expression, e.g. mean(axes)')
         self.command.returnPressed.connect(self.run_command)
         self.notebooks = QtWidgets.QComboBox()
 
-        terminal_row = QtWidgets.QHBoxLayout()
-        terminal_row.addWidget(self.command)
-        terminal_row.addWidget(button('CLS', self.terminal.clear))
+        console = QtWidgets.QWidget()
+        console_layout = QtWidgets.QVBoxLayout(console)
+        console_layout.addWidget(self.terminal, stretch=1)
+        command_row = QtWidgets.QHBoxLayout()
+        command_row.addWidget(self.command, stretch=1)
+        command_row.addWidget(button('Clear', self.terminal.clear))
+        console_layout.addLayout(command_row)
+        notebooks = QtWidgets.QWidget()
+        notebook_layout = QtWidgets.QVBoxLayout(notebooks)
+        notebook_layout.addWidget(QtWidgets.QLabel('Jupyter notebooks processed for this scan', objectName='muted'))
+        notebook_layout.addWidget(self.notebooks)
         notebook_row = QtWidgets.QHBoxLayout()
-        notebook_row.addWidget(self.notebooks, stretch=1)
         notebook_row.addWidget(button('Open', self.open_notebook, self))
         notebook_row.addWidget(button('Reprocess', self.reprocess_notebook, self))
+        notebook_row.addStretch()
+        notebook_layout.addLayout(notebook_row)
+        notebook_layout.addStretch()
+
+        self.tabs = QtWidgets.QTabWidget(documentMode=True)
+        self.tabs.addTab(self.text, 'Details')
+        self.tabs.addTab(console, 'Console')
+        self.tabs.addTab(notebooks, 'Notebooks')
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.text, stretch=1)
-        layout.addWidget(self.terminal)
-        layout.addLayout(terminal_row)
-        layout.addLayout(notebook_row)
+        layout.addWidget(self.tabs)
 
     def update_file(self, filename: str, hdf_map: hdfmap.NexusMap):
         self.filename = filename
@@ -59,6 +73,7 @@ class DetailsPanel(QtWidgets.QWidget):
         self.notebooks.clear()
         for notebook in get_scan_notebooks(filename):
             self.notebooks.addItem(os.path.basename(notebook), notebook)
+        self.tabs.setTabText(2, f"Notebooks ({self.notebooks.count()})")
 
     def update_text(self):
         try:
@@ -115,18 +130,24 @@ class DataViewer(QtWidgets.QMainWindow):
         self.image.indexChanged.connect(self.line.set_index)
         self.scans.selectionChanged.connect(lambda files: run_safely(self, self.on_select, files))
 
-        left = QtWidgets.QSplitter(Qt.Vertical)
-        left.addWidget(self.scans)
-        left.addWidget(self.details)
-        right = QtWidgets.QSplitter(Qt.Vertical)
-        right.addWidget(self.line)
-        right.addWidget(self.image)
-        main = QtWidgets.QSplitter()
+        left = QtWidgets.QSplitter(Qt.Vertical, childrenCollapsible=False)
+        left.addWidget(card(self.scans, title='Scans'))
+        left.addWidget(card(self.details))
+        left.setStretchFactor(0, 3)
+        left.setStretchFactor(1, 2)
+        self.plots = QtWidgets.QSplitter(Qt.Vertical, childrenCollapsible=False)
+        self.plots.addWidget(self.line)
+        self.plots.addWidget(self.image)
+        main = QtWidgets.QSplitter(childrenCollapsible=False)
         main.addWidget(left)
-        main.addWidget(right)
-        main.setStretchFactor(1, 2)
+        main.addWidget(self.plots)
+        main.setStretchFactor(0, 1)
+        main.setStretchFactor(1, 3)
+        main.setContentsMargins(8, 8, 8, 8)
         self.setCentralWidget(main)
-        self.resize(1400, 900)
+        fit_to_screen(self, 2400, 1400)
+        left_width = max(380, int(self.width() * 0.28))
+        main.setSizes([left_width, self.width() - left_width])
 
         add_menus(self, {
             'File': {
@@ -145,9 +166,19 @@ class DataViewer(QtWidgets.QMainWindow):
             self.scans.add_folder(folder)
             QTimer.singleShot(100, self.scans.select_first)
 
+    def resizeEvent(self, event):
+        """Put the plot and image side by side on wide screens, otherwise stack them"""
+        super().resizeEvent(event)
+        wide = self.width() >= 1.8 * self.height() and self.width() >= 1800
+        orientation = Qt.Horizontal if wide else Qt.Vertical
+        if self.plots.orientation() != orientation:
+            self.plots.setOrientation(orientation)
+            self.plots.setSizes([1, 1])
+
     def on_select(self, files: list[str]):
         if not files:
             return
+        self.statusBar().showMessage(files[0] if len(files) == 1 else f"{len(files)} scans selected")
         self.config[C.current_dir] = os.path.dirname(files[0])
         self.scans.number.setValue(get_scan_number(files[0]))
         hdf_map = hdfmap.create_nexus_map(files[0])

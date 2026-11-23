@@ -9,7 +9,8 @@ from mmg_toolbox.utils.env_functions import get_dls_visits
 from mmg_toolbox.utils.file_functions import folder_summary_line
 from mmg_toolbox.beamline_metadata.default_scripts import create_beamline_scripts
 from .config import C, BEAMLINE_CONFIG, get_config, save_config
-from .common import add_menus, show_window, select_folder, button, labelled
+from .common import add_menus, show_window, select_folder, button
+from .style import card, form, row, heading, fit_to_screen
 from .processing import processing_menu
 
 
@@ -22,38 +23,52 @@ class TitleWindow(QtWidgets.QMainWindow):
         self.config = get_config(beamline=beamline)
         self.visits: dict[str, str] = {}
 
-        self.title = QtWidgets.QLabel(styleSheet='font-size: 18pt; font-weight: bold')
+        self.title = heading()
         self.visit = QtWidgets.QComboBox()
         self.visit.activated.connect(lambda: self.set_data_dir(self.visits[self.visit.currentText()]))
-        self.summary = QtWidgets.QLabel()
-        self.data_dir = QtWidgets.QLineEdit()
+        self.summary = QtWidgets.QLabel(objectName='muted', wordWrap=True)
+        self.data_dir = QtWidgets.QLineEdit(placeholderText='Folder containing NeXus scan files')
         self.data_dir.returnPressed.connect(lambda: self.set_data_dir(self.data_dir.text()))
-        self.proc_dir = QtWidgets.QLineEdit()
-        self.notebook_dir = QtWidgets.QLineEdit()
+        self.proc_dir = QtWidgets.QLineEdit(placeholderText='Folder for processing scripts and outputs')
+        self.notebook_dir = QtWidgets.QLineEdit(placeholderText='Folder of processed Jupyter notebooks')
 
         def browse(line_edit: QtWidgets.QLineEdit, setter=None):
             def fn():
                 folder = select_folder(self, line_edit.text())
                 if folder:
                     (setter or line_edit.setText)(folder)
-            return button('Browse', fn)
+            return row(line_edit, button('Browse', fn), stretch=0)
 
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addWidget(button('Data Viewer', self.open_data_viewer, self))
-        buttons.addWidget(button('Log Viewer', self.open_log_viewer, self))
-        buttons.addWidget(button('Notebook Browser', lambda: self.open_browser('jupyter'), self))
-        buttons.addWidget(button('Processing', self.open_multi_scan, self))
+        experiment = card(layout=form(
+            ('Visit', row(self.visit, button('Check files', lambda: self.open_browser('nexus'), self), stretch=0)),
+            ('', self.summary),
+        ), title='Experiment')
+        folders = card(layout=form(
+            ('Data', browse(self.data_dir, self.set_data_dir)),
+            ('Analysis', browse(self.proc_dir)),
+            ('Notebooks', browse(self.notebook_dir)),
+        ), title='Folders')
+        actions = QtWidgets.QGridLayout()
+        for n, (text, fn, primary) in enumerate([
+                ('Open Data Viewer', self.open_data_viewer, True),
+                ('Processing', self.open_multi_scan, False),
+                ('Notebook Browser', lambda: self.open_browser('jupyter'), False),
+                ('Log Viewer', self.open_log_viewer, False)]):
+            actions.addWidget(button(text, fn, self, primary=primary), 0, n)
+
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
+        layout.setContentsMargins(20, 16, 20, 20)
+        layout.setSpacing(12)
         layout.addWidget(self.title)
-        layout.addLayout(labelled('Visit:', self.visit, button('Check', lambda: self.open_browser('nexus'), self)))
-        layout.addWidget(self.summary)
-        layout.addLayout(labelled('Data Dir:', self.data_dir, browse(self.data_dir, self.set_data_dir)))
-        layout.addLayout(labelled('Analysis Dir:', self.proc_dir, browse(self.proc_dir)))
-        layout.addLayout(labelled('Notebook Dir:', self.notebook_dir, browse(self.notebook_dir)))
-        layout.addLayout(buttons)
+        layout.addWidget(QtWidgets.QLabel('Choose an experiment, then open the data viewer or a processing tool.',
+                                          objectName='muted', wordWrap=True))
+        layout.addWidget(experiment)
+        layout.addWidget(folders)
+        layout.addLayout(actions)
+        layout.addStretch()
         self.setCentralWidget(central)
-        self.resize(800, 250)
+        fit_to_screen(self, 860, 400)
 
         add_menus(self, {
             'File': {
@@ -79,7 +94,7 @@ class TitleWindow(QtWidgets.QMainWindow):
 
     def choose_beamline(self, beamline: str):
         self.config.update(BEAMLINE_CONFIG.get(beamline, {}))
-        self.title.setText(f"MMG Toolbox: {beamline}")
+        self.title.setText(f"{beamline.upper()} Data Viewer")
         self.visits = get_dls_visits(beamline)
         default = self.config.get(C.default_directory, '.')
         self.visits['default'] = default if os.path.isdir(default) else os.path.expanduser('~')

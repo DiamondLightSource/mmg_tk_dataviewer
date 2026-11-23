@@ -110,7 +110,7 @@ class DataViewer(QtWidgets.QMainWindow):
 
         self.scans = ScanList(self.config)
         self.details = DetailsPanel(self.config)
-        self.line = LinePlot(self.config)
+        self.line = LinePlot(self.config, axis_list=True)
         self.image = ImagePlot(self.config)
         self.image.indexChanged.connect(self.line.set_index)
         self.scans.selectionChanged.connect(lambda files: run_safely(self, self.on_select, files))

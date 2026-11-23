@@ -29,11 +29,13 @@ class LinePlot(QtWidgets.QWidget):
     """
     1D line plot of one or more scans with a choice of x and y axes.
     Axes can be chosen from the scannables or typed as an expression.
+    With axis_list=True, a list beside the plot allows several y-axes to be plotted together.
     """
 
-    def __init__(self, config: dict, parent=None):
+    def __init__(self, config: dict, parent=None, axis_list: bool = False):
         super().__init__(parent)
         self.config = config
+        self.axis_list = axis_list
         self.files: list[str] = []
         self.map: hdfmap.NexusMap | None = None
 
@@ -49,10 +51,14 @@ class LinePlot(QtWidgets.QWidget):
         self.error = QtWidgets.QLabel(styleSheet='color: red')
         self.plot = PlotCanvas(self)
         self.index_line = None
+        self.y_list = QtWidgets.QListWidget(maximumWidth=200)
+        self.y_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.y_list.itemSelectionChanged.connect(self.on_list_select)
 
-        for widget in (self.x_axis, self.y_axis):
-            widget.lineEdit().returnPressed.connect(self.update_plot)
-            widget.activated.connect(self.update_plot)
+        self.x_axis.lineEdit().returnPressed.connect(self.update_plot)
+        self.x_axis.activated.connect(self.update_plot)
+        self.y_axis.lineEdit().returnPressed.connect(self.on_y_axis_change)
+        self.y_axis.activated.connect(self.on_y_axis_change)
         for widget in (*self.options.values(), self.fit):
             widget.toggled.connect(self.update_plot)
         self.n_peaks.valueChanged.connect(self.update_plot)
@@ -73,7 +79,11 @@ class LinePlot(QtWidgets.QWidget):
         layout.addLayout(labelled('X:', self.x_axis, self.fix_x))
         layout.addLayout(labelled('Y:', self.y_axis, self.fix_y))
         layout.addLayout(options)
-        layout.addWidget(self.plot, stretch=1)
+        plot_row = QtWidgets.QHBoxLayout()
+        plot_row.addWidget(self.plot, stretch=1)
+        plot_row.addWidget(self.y_list)
+        self.y_list.setHidden(not axis_list)
+        layout.addLayout(plot_row, stretch=1)
         layout.addWidget(self.error)
 
     def update_files(self, files: list[str], hdf_map: hdfmap.NexusMap | None = None):
@@ -86,11 +96,43 @@ class LinePlot(QtWidgets.QWidget):
             combo.clear()
             combo.addItems(names)
             combo.setCurrentText(current if fix.isChecked() else next(iter(default), ''))
+        self.y_list.blockSignals(True)
+        self.y_list.clear()
+        self.y_list.addItems(names)
+        self.y_list.blockSignals(False)
+        self.on_y_axis_change()
+
+    def on_y_axis_change(self):
+        """Select the y-axis in the list, adding it if it isn't there, then plot"""
+        name = self.y_axis.currentText()
+        items = self.y_list.findItems(name, Qt.MatchExactly)
+        if not items and name:
+            self.y_list.addItem(name)
+            items = self.y_list.findItems(name, Qt.MatchExactly)
+        self.y_list.blockSignals(True)
+        self.y_list.clearSelection()
+        for item in items:
+            item.setSelected(True)
+            self.y_list.scrollToItem(item)
+        self.y_list.blockSignals(False)
         self.update_plot()
 
-    def signal(self) -> str:
-        """y-axis expression including the selected options"""
-        signal = self.y_axis.currentText()
+    def on_list_select(self):
+        """Plot the y-axes selected in the list"""
+        names = self.y_names()
+        if names:
+            self.y_axis.setCurrentText(names[0])
+            self.update_plot()
+
+    def y_names(self) -> list[str]:
+        """y-axes to plot: those selected in the list, or the y-axis box"""
+        if self.axis_list and self.y_list.selectedItems():
+            return [item.text() for item in self.y_list.selectedItems()]
+        return [self.y_axis.currentText()]
+
+    def signal(self, name: str | None = None) -> str:
+        """y-axis expression (by default from the y-axis box) including the selected options"""
+        signal = name or self.y_axis.currentText()
         if self.options['Normalise'].isChecked():
             signal += self.config.get(C.normalise_factor, '')
         if self.options['Log'].isChecked():
@@ -102,11 +144,15 @@ class LinePlot(QtWidgets.QWidget):
         return signal
 
     def get_data(self) -> list[tuple[np.ndarray, np.ndarray, str]]:
-        """Return [(x, y, label), ...] for each file"""
-        return [
-            (*load_xy(self.map, f, self.x_axis.currentText(), self.signal()), f"#{get_scan_number(f)}")
-            for f in self.files
-        ]
+        """Return [(x, y, label), ...] for each file and y-axis"""
+        names = self.y_names()
+        data = []
+        for f in self.files:
+            for name in names:
+                label = f"#{get_scan_number(f)}" if len(self.files) > 1 else ''
+                label = f"{label} {name}".strip() if len(names) > 1 else label
+                data.append((*load_xy(self.map, f, self.x_axis.currentText(), self.signal(name)), label))
+        return data
 
     def update_plot(self):
         if not self.files:

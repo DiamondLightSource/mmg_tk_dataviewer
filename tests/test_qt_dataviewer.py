@@ -18,7 +18,7 @@ def make_scan(filename: str, scan_number: int, n_points: int = 11):
         entry = nx.create_group('entry')
         entry.attrs['NX_class'] = 'NXentry'
         entry.attrs['default'] = 'data'
-        entry.create_dataset('scan_command', data=f'scan x 0 1 0.1 pil 1')
+        entry.create_dataset('scan_command', data='scan x 0 1 0.1 pil 1')
         entry.create_dataset('entry_identifier', data=str(scan_number))
         x = np.linspace(0, 1, n_points)
         y = 100 * np.exp(-((x - 0.5) / 0.1) ** 2) + 5
@@ -73,6 +73,14 @@ def test_data_viewer(app, experiment, config):
     assert viewer.line.x_axis.currentText() == 'x'
     assert viewer.image.plot.ax.get_images(), 'detector image not shown'
     assert 'i16-100' in viewer.details.text.toPlainText()
+    # select two y-axes from the list beside the plot
+    viewer.line.y_list.selectAll()
+    assert set(viewer.line.y_names()) == {'x', 'total'}
+    labels = [line.get_label() for line in viewer.line.plot.ax.get_lines()]
+    assert 'x' in labels and 'total' in labels
+    viewer.line.y_axis.setCurrentText('total')
+    viewer.line.on_y_axis_change()
+    assert viewer.line.y_names() == ['total']
     viewer.line.fit.setChecked(True)
     assert any(line.get_label() == 'fit' for line in viewer.line.plot.ax.get_lines())
     viewer.image.index.setValue(5)

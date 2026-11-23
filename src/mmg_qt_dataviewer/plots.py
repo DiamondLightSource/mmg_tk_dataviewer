@@ -89,7 +89,8 @@ class LinePlot(QtWidgets.QWidget):
     def update_files(self, files: list[str], hdf_map: hdfmap.NexusMap | None = None):
         self.files = files
         self.map = hdf_map or hdfmap.create_nexus_map(files[0])
-        names = list(self.map.scannables) + [n for n in self.map.combined if '_total' in n]
+        roi_totals = [f"{roi[0]}_total" for roi in self.config.get(C.roi, [])]
+        names = list(self.map.scannables) + [n for n in roi_totals if n in self.map.combined]
         axes, signals = self.map.nexus_default_names()
         for combo, fix, default in [(self.x_axis, self.fix_x, axes), (self.y_axis, self.fix_y, signals)]:
             current = combo.currentText()

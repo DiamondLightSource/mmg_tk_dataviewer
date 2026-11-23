@@ -9,8 +9,6 @@ import webbrowser
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
-import matplotlib
-matplotlib.use('QtAgg')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 

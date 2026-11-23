@@ -58,6 +58,7 @@ def config(experiment):
     cfg = default_config('i16')
     cfg[C.current_dir] = experiment
     cfg[C.roi] = []
+    cfg[C.metadata_string] = '{filename}\ncmd = {scan_command}'
     return cfg
 
 

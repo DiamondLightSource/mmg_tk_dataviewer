@@ -11,6 +11,7 @@ dependencies = [
     "pillow",
     "matplotlib",
     "mmg-toolbox",
+    "PySide6<6.10",  # 6.10+ wheels need glibc 2.34; RHEL 8 has 2.28
 ]
 authors = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
 maintainers = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
@@ -34,6 +35,7 @@ Documentation = "https://diamondlightsource.github.io/mmg_toolbox"
 
 [project.scripts]
 dataviewer = "mmg_tk_dataviewer:cli_run"
+dataviewer-qt = "mmg_qt_dataviewer:cli_run"
 
 [project.optional-dependencies]
 

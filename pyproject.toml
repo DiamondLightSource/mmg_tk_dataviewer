@@ -17,14 +17,20 @@ maintainers = [{ name = "Dan Porter", email = "dan.porter@diamond.ac.uk" }]
 description = "a simple NeXus dataviewer for the Diamond Magnetic Materials Group"
 readme = "README.md"
 license = { file = "LICENSE" }
-keywords = ['nexus']
+keywords = ['nexus', 'hdf5', 'diamond', 'tkinter', 'dataviewer']
 classifiers = [
-    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.11',
     'Intended Audience :: Science/Research',
     'Topic :: Scientific/Engineering :: Physics',
     'License :: OSI Approved :: Apache Software License',
     'Development Status :: 3 - Alpha',
 ]
+
+[project.urls]
+Homepage = "https://github.com/DiamondLightSource/mmg_tk_dataviewer"
+Repository = "https://github.com/DiamondLightSource/mmg_tk_dataviewer"
+Documentation = "https://diamondlightsource.github.io/mmg_toolbox"
 
 [project.scripts]
 dataviewer = "mmg_tk_dataviewer:cli_run"

@@ -406,7 +406,7 @@ class FolderTreeViewFrame(CanvasTreeview):
         filename, foldername = self.get_filepath()
         logger.info(f"Opening folder summary for filename: {filename}")
         if foldername:
-            from mmg_toolbox.tkguis.apps.edit_text import EditText
+            from ..apps.edit_text import EditText
             summary = folder_summary(foldername)
             EditText(summary, self.root).show()
 

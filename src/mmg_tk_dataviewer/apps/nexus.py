@@ -13,7 +13,7 @@ def create_nexus_viewer(filename: str | None = None, parent: tk.Misc | None = No
     """
     File Viewer of the NeXus structure
     """
-    from mmg_toolbox.tkguis.widgets.hdf_viewer import HDFViewer
+    from ..widgets.hdf_viewer import HDFViewer
 
     root = create_root(parent=parent, window_title='NeXus File Viewer')
 
@@ -37,7 +37,7 @@ def create_nexus_plotter(*filenames: str, parent: tk.Misc | None = None, config:
     Plot 1D line data from a NeXus file
     """
     from ..widgets.nexus_plot import NexusDefaultPlot
-    from mmg_toolbox.tkguis.apps.config_editor import ConfigEditor
+    from .config_editor import ConfigEditor
 
     root = create_root('NeXus File Default Plot', parent=parent)
     widget = NexusDefaultPlot(root, *filenames, config=config)
@@ -94,7 +94,7 @@ def create_nexus_plot_and_image(*filenames: str, parent: tk.Misc | None = None, 
     Plot 1D line and image data from a NeXus file
     """
     from ..widgets.nexus_plot_and_image import NexusPlotAndImage
-    from mmg_toolbox.tkguis.apps.config_editor import ConfigEditor
+    from .config_editor import ConfigEditor
 
     root = create_root('NeXus File Default Plot', parent=parent)
     widget = NexusPlotAndImage(root, *filenames, config=config, horizontal_alignment=True)

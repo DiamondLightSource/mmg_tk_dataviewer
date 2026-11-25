@@ -233,10 +233,15 @@ class PairList(QtWidgets.QWidget):
         hint = QtWidgets.QLabel('Select two scans in the Scans table and click Add selected pair, '
                                 'or use Auto-pair to pair scans automatically.', objectName='muted', wordWrap=True)
         layout.addWidget(hint)
-        layout.addLayout(row(QtWidgets.QLabel('By'), self.by, auto, None))
+        layout.addLayout(row(QtWidgets.QLabel('By'), self.by, auto, add, None))
         layout.addWidget(self.tree)
-        layout.addLayout(row(add, button('Swap', self.swap, self), button('Remove', self.remove, self),
+        layout.addLayout(row(button('Swap', self.swap, self), button('Remove', self.remove, self),
                              button('Clear', self.clear, self), None))
+
+    def resizeEvent(self, event):
+        """Keep room for the wrapped hint, so the pair table doesn't overlap the buttons below it"""
+        super().resizeEvent(event)
+        self.setMinimumHeight(self.layout().minimumHeightForWidth(self.width()))
 
     def auto_pair(self):
         """Pair the selected scans, or all loaded scans if fewer than two are selected"""

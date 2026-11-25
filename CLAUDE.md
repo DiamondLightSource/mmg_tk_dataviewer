@@ -70,7 +70,18 @@ uv run --extra dev pytest tests/test_qt_dataviewer.py -rs
   - `resizeEvent` puts the plots side by side when width ≥ 1.8 × height and width ≥ 1800.
 - The other windows:
   - `nexus_viewer.py`: tree, HdfMap and lazily loaded string tabs, plus evaluate-expression.
-  - `title_window.py`, `file_browser.py`, `multi_scan.py` (`ScanRange`), `peak_fit.py` and `xmcd.py` (average, compare and sum-rules tabs).
+  - `title_window.py`, `file_browser.py`, `multi_scan.py` (`ScanRange`) and `peak_fit.py`.
+  - `xmcd/`: the XMCD Visualiser package.
+    - `analysis.py` has **no Qt**: processing `Step`s and `apply_chain`, `find_pairs`, `Pair`, `Result` (averages, dichroism, sum rules) and `to_script` / `to_notebook` code generation. Test analysis changes here first.
+    - `draw.py` holds plot functions `draw_*(axes, ...)`, so the same plot can be drawn in a pop-out via `common.popout(title, draw)`.
+    - `scans.py` (scan browser with preview, pair list), `chain_editor.py`, `grid.py` (pair grid with include checkboxes), `results.py` (Average, Sum rules, Series tabs) and `window.py`.
+    - Load XAS files one at a time with `analysis.load_scan`. `Experiment.load_xas` defaults to `match_metadata=True` and silently adds or drops scans.
+    - The **DLS loader** checkbox is on by default, which is what real beamline files need. The synthetic files in the tests and `docs/generate_qt_ui_images.py` can't be read that way, so those untick it straight after creating the window, before the scans load.
+    - Pairing: **Auto-pair** uses the scans selected in the Scans table, or all loaded scans if fewer than two are selected. **Add selected pair** needs exactly two selected scans. Both are also in the Scans table's right-click menu (`ScanBrowser.pairRequested` / `autoPairRequested`). Keep the tooltips and the hint label in `PairList` accurate if pairing changes, because users found pairing unclear.
+    - The detection-mode combo is filled whenever the pairs change (`_update_modes`), not only after every scan has loaded. Real folders such as `/dls/science/groups/das/ExampleData/i10-1/nt42193-1` hold hundreds of scans and take a long time to load.
+    - The Pairs grid shows **all conditions** by default, so every pair appears after auto-pair. Picking a condition (temperature and field) in the combo filters the grid and the average. When the included pairs span several conditions, the average is still calculated but the info line and status bar show a ⚠ warning, because pairs at opposite fields cancel. **Refresh plots** (next to Clear) re-runs `window.reprocess()`.
+    - The Average tab's top two plots show every scan of each polarisation (not their average). The averages are overlaid in the third plot.
+    - Panel widths: the left scroll area's minimum width comes from its contents' `minimumSizeHint()`, and the right card's from the tabs' minimum width. Hard-coded widths clipped buttons at 1280×720 and 1366×768.
   - `editors.py` (Python editor, log viewer), `config_editor.py`, `visits.py` and `processing.py` (script/notebook templates from mmg_toolbox).
 
 ## Qt conventions and gotchas
@@ -81,6 +92,7 @@ uv run --extra dev pytest tests/test_qt_dataviewer.py -rs
 - Don't give toolbars `background: transparent` in QSS. matplotlib's icon engine then thinks it is in dark mode and draws invisible icons.
 - `widget.isVisible()` is False until the window is shown, so keep your own flag (e.g. `self.axis_list`). Use `setHidden()` only after a widget has a parent. Showing a parentless widget opens a separate window.
 - The y-axis names are `map.scannables` plus `f"{roi}_total"` for config ROIs only. Don't list every hdfmap `*_total` name.
+- A word-wrapped `QLabel` isn't counted properly in its layout's minimum height, so a panel squeezed to its minimum (e.g. inside a `QSplitter`) lets widgets overlap. Set the minimum from the wrapped height in `resizeEvent`: `self.setMinimumHeight(self.layout().minimumHeightForWidth(self.width()))`, as `xmcd.scans.PairList` does.
 - Check layouts at small and large sizes, from 1280×720 and 1366×768 up to 2560×1440 and 3440×1440, in light and dark themes.
 
 ## tk package layout (`src/mmg_tk_dataviewer/`)

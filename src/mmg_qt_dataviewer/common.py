@@ -158,10 +158,10 @@ class PlotCanvas(QtWidgets.QFrame):
     Other widgets can be added to the toolbar row with plot.toolbar_row.addWidget(...)
     """
 
-    def __init__(self, parent=None, nrows: int = 1, ncols: int = 1, toolbar: bool = True):
+    def __init__(self, parent=None, nrows: int = 1, ncols: int = 1, toolbar: bool = True, **subplot_kw):
         super().__init__(parent, objectName='plot')
         self.figure = Figure(figsize=(5, 3), layout='constrained')
-        self.axes = self.figure.subplots(nrows, ncols, squeeze=False).flatten()
+        self.axes = self.figure.subplots(nrows, ncols, squeeze=False, **subplot_kw).flatten()
         self.ax = self.axes[0]
         self.canvas = FigureCanvasQTAgg(self.figure)
         self.canvas.setMinimumSize(200, 150)
@@ -189,6 +189,22 @@ class PlotCanvas(QtWidgets.QFrame):
 
     def draw(self):
         self.canvas.draw_idle()
+
+
+def popout(title: str, draw, nrows: int = 1, ncols: int = 1, **subplot_kw) -> QtWidgets.QMainWindow:
+    """
+    Open a larger copy of a plot in its own window
+    :param draw: function draw(axes) that plots onto a list of matplotlib axes
+    """
+    window = QtWidgets.QMainWindow()
+    window.setWindowTitle(title)
+    plot = PlotCanvas(window, nrows, ncols, **subplot_kw)
+    draw(plot.axes)
+    plot.style_axes()
+    plot.draw()
+    window.setCentralWidget(plot)
+    fit_to_screen(window, 1100, 750)
+    return show_window(window)
 
 
 class TextWindow(QtWidgets.QMainWindow):

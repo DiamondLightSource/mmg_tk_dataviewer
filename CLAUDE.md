@@ -70,7 +70,12 @@ uv run --extra dev pytest tests/test_qt_dataviewer.py -rs
   - `resizeEvent` puts the plots side by side when width ≥ 1.8 × height and width ≥ 1800.
 - The other windows:
   - `nexus_viewer.py`: tree, HdfMap and lazily loaded string tabs, plus evaluate-expression.
-  - `title_window.py`, `file_browser.py`, `multi_scan.py` (`ScanRange`), `peak_fit.py` and `xmcd.py` (average, compare and sum-rules tabs).
+  - `title_window.py`, `file_browser.py`, `multi_scan.py` (`ScanRange`) and `peak_fit.py`.
+  - `xmcd/`: the XMCD Visualiser package.
+    - `analysis.py` has **no Qt**: processing `Step`s and `apply_chain`, `find_pairs`, `Pair`, `Result` (averages, dichroism, sum rules) and `to_script` / `to_notebook` code generation. Test analysis changes here first.
+    - `draw.py` holds plot functions `draw_*(axes, ...)`, so the same plot can be drawn in a pop-out via `common.popout(title, draw)`.
+    - `scans.py` (scan browser with preview, pair list), `chain_editor.py`, `grid.py` (pair grid with include checkboxes), `results.py` (Average, Sum rules, Series tabs) and `window.py`.
+    - Load XAS files one at a time with `analysis.load_scan`. `Experiment.load_xas` defaults to `match_metadata=True` and silently adds or drops scans.
   - `editors.py` (Python editor, log viewer), `config_editor.py`, `visits.py` and `processing.py` (script/notebook templates from mmg_toolbox).
 
 ## Qt conventions and gotchas

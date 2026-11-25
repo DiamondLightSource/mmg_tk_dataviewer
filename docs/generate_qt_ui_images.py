@@ -24,7 +24,7 @@ os.environ['QT_QPA_PLATFORM'] = f'offscreen:configfile={screen_file}'
 sys.path[:0] = [os.path.join(REPO, 'src'), REPO]
 
 from PySide6.QtCore import Qt
-from tests.test_qt_dataviewer import make_scan
+from tests.test_qt_dataviewer import make_scan, make_xas_experiment
 from mmg_qt_dataviewer.common import get_app
 from mmg_qt_dataviewer.config import default_config, C
 from mmg_qt_dataviewer import (data_viewer, title_window, nexus_viewer, multi_scan, peak_fit, xmcd,
@@ -38,6 +38,9 @@ for n in range(1001, 1021):
     if not os.path.exists(filename):
         make_scan(filename, n)
 FILES = [os.path.join(DATA, 'i16-1005.nxs')]
+XAS_DATA = os.path.join(tempfile.gettempdir(), 'dls', 'i06-1', 'data', '2026', 'mm12345-1')  # example XAS visit
+os.makedirs(XAS_DATA, exist_ok=True)
+make_xas_experiment(XAS_DATA)
 
 app = get_app(theme='light')
 config = default_config('i16')
@@ -61,7 +64,7 @@ WINDOWS = {
     'multi_scan_analysis': lambda: multi_scan.MultiScanAnalysis(config, [1001, 1002, 1003], 'x', 'total', DATA),
     'peak_fitting': lambda: peak_fit.PeakFitting(config, list(range(1001, 1011)), 'x', 'total', DATA,
                                                  'entry_identifier'),
-    'xmcd_visualiser': lambda: xmcd.XMCDVisualiser(config, [1001], DATA),
+    'xmcd_visualiser': lambda: xmcd.XMCDVisualiser(config, [], XAS_DATA),
     'file_browser': lambda: file_browser.FileBrowser(DATA, 'nexus', config),
     'python_editor': python_editor,
     'config_editor': lambda: config_editor.ConfigEditor(dict(config)),
@@ -83,6 +86,13 @@ def prepare(name, window):
         window.evaluate()
     elif name == 'peak_fitting':
         window.fit_all()
+    elif name == 'xmcd_visualiser':
+        while window.browser.is_loading():
+            app.processEvents()
+        app.processEvents()
+        window.browser.tree.topLevelItem(0).setSelected(True)
+        window.browser.tree.topLevelItem(1).setSelected(True)
+        window.tabs.setCurrentWidget(window.sum_rules)
 
 
 for name, make in WINDOWS.items():

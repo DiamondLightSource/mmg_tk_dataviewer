@@ -90,7 +90,8 @@ class PairGrid(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cells: list[PairCell] = []
-        self.condition = QtWidgets.QComboBox(toolTip='Only show and average pairs measured at one condition',
+        self.condition = QtWidgets.QComboBox(toolTip='Only show and average pairs measured at one condition\n'
+                                                     '(temperature and field)',
                                              minimumContentsLength=12,
                                              sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
         self.condition.currentTextChanged.connect(self._condition_changed)
@@ -127,9 +128,7 @@ class PairGrid(QtWidgets.QWidget):
         self.condition.clear()
         self.condition.addItems([ALL] + conditions if len(conditions) > 1 else conditions)
         if current in conditions:
-            self.condition.setCurrentText(current)
-        elif len(conditions) > 1:
-            self.condition.setCurrentIndex(1)  # start with the first condition rather than mixing them
+            self.condition.setCurrentText(current)  # otherwise show every pair
         self.condition.blockSignals(False)
         self.empty.setHidden(bool(pairs))
         self._columns = 0

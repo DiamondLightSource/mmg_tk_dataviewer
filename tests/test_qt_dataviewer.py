@@ -237,7 +237,12 @@ def test_xmcd_visualiser(app, xas_experiment, config):
     assert len(window.browser.loaded_scans()) == 8
     assert len(window.pairs) == 4, 'scans should be paired automatically'
     assert len(window.grid.cells) == 4
-    assert window.result is not None and len(window.result.pairs) == 2  # first condition only
+    assert all(not cell.isHidden() for cell in window.grid.cells), 'every pair should be shown after auto-pair'
+    assert len(window.result.pairs) == 4 and '⚠' in window.average.info.text()  # two conditions mixed
+    window.grid.condition.setCurrentIndex(1)
+    assert len(window.result.pairs) == 2 and '⚠' not in window.average.info.text()
+    window.pair_list.refreshRequested.emit()
+    assert len(window.processed) == 8
 
     window.grid.cells[0].include.setChecked(False)
     assert len(window.result.pairs) == 1

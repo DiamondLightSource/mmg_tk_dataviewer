@@ -205,6 +205,7 @@ class PairList(QtWidgets.QWidget):
     """
     changed = Signal()
     pairSelected = Signal(int)
+    refreshRequested = Signal()
 
     def __init__(self, pairs: list[Pair], browser: ScanBrowser, parent=None):
         super().__init__(parent)
@@ -230,13 +231,15 @@ class PairList(QtWidgets.QWidget):
                         'than two are selected). Scans are only paired with the same element and temperature.')
         add = button('Add selected pair', self.pair_selected, self)
         add.setToolTip('Add the two scans selected in the Scans table (Ctrl+click to select two) as a new pair')
+        refresh = button('Refresh plots', self.refreshRequested.emit, self)
+        refresh.setToolTip('Process the scans again and redraw every plot in the Pairs grid')
         hint = QtWidgets.QLabel('Select two scans in the Scans table and click Add selected pair, '
                                 'or use Auto-pair to pair scans automatically.', objectName='muted', wordWrap=True)
         layout.addWidget(hint)
         layout.addLayout(row(QtWidgets.QLabel('By'), self.by, auto, add, None))
         layout.addWidget(self.tree)
         layout.addLayout(row(button('Swap', self.swap, self), button('Remove', self.remove, self),
-                             button('Clear', self.clear, self), None))
+                             button('Clear', self.clear, self), refresh, None))
 
     def resizeEvent(self, event):
         """Keep room for the wrapped hint, so the pair table doesn't overlap the buttons below it"""

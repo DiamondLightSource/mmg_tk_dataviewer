@@ -58,6 +58,7 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         self.browser.autoPairRequested.connect(lambda: run_safely(self, self.pair_list.auto_pair))
         self.pair_list.changed.connect(self._pairs_changed)
         self.pair_list.pairSelected.connect(self.grid.show_pair)
+        self.pair_list.refreshRequested.connect(self.reprocess)
         self.chain.changed.connect(self._reprocess_timer.start)
         self.grid.includeChanged.connect(self._includes_changed)
         self.grid.conditionChanged.connect(self.update_average)
@@ -206,6 +207,10 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
                 self.result = Result.calculate(pairs, self.processed, self.chain.steps, self.chain.current_mode(),
                                                self.browser.dls_loader.isChecked())
                 info = f"{len(pairs)} pairs averaged: {self.result.label()}"
+                conditions = {p.condition() for p in pairs}
+                if len(conditions) > 1:
+                    info = (f"⚠ {len(pairs)} pairs from {len(conditions)} conditions averaged together. "
+                            f"Choose one condition above the Pairs grid to average like with like.")
             except Exception as e:
                 self.result = None
                 info = f"Averaging failed: {e}"

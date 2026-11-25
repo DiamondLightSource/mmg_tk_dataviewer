@@ -93,6 +93,7 @@ def prepare(name, window):
         app.processEvents()
         window.browser.tree.topLevelItem(0).setSelected(True)
         window.browser.tree.topLevelItem(1).setSelected(True)
+        window.grid.condition.setCurrentIndex(1)  # average one condition
         window.tabs.setCurrentWidget(window.sum_rules)
 
 

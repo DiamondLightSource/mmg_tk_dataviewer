@@ -68,14 +68,12 @@ def draw_pair(axes, scan1: SpectraContainer, scan2: SpectraContainer, mode: str,
 
 
 def draw_average(axes, result: Result):
-    """Each polarisation with its average, both averages, and the dichroism"""
+    """All the scans of each polarisation, both averages, and the dichroism"""
     mode, diff = result.mode, result.diff
-    for ax, average, name, colour in ((axes[0], result.pol1, diff.spectra1.name, POL1),
-                                      (axes[1], result.pol2, diff.spectra2.name, POL2)):
+    for ax, average, name in ((axes[0], result.pol1, diff.spectra1.name), (axes[1], result.pol2, diff.spectra2.name)):
         for scan in average.parents:
-            scan.spectra[mode].plot(ax, color=colour, lw=0.7, alpha=0.4, label='_')
-        average.spectra[mode].plot(ax, color=colour, lw=1.5, label=f"{name} average")
-        ax.set_title(f"{name} ({len(average.parents)} scans)", fontsize=9)
+            scan.spectra[mode].plot(ax, lw=1, label=scan_label(scan))
+        ax.set_title(f"{name}: {len(average.parents)} scans", fontsize=9)
     result.pol1.spectra[mode].plot(axes[2], color=POL1, lw=1.2, label=diff.spectra1.name)
     result.pol2.spectra[mode].plot(axes[2], color=POL2, lw=1.2, label=diff.spectra2.name)
     axes[2].set_title('Averages', fontsize=9)
@@ -85,7 +83,8 @@ def draw_average(axes, result: Result):
     for ax in axes[:4]:
         edge_lines(ax, diff)
         ax.set_xlabel('E [eV]')
-        legend(ax)
+        if len(ax.get_legend_handles_labels()[0]) <= 12:  # too many scans make the legend hide the plot
+            legend(ax)
 
 
 def draw_sum_rules(axes, result: Result, split_energy: float):

@@ -229,6 +229,8 @@ def test_xmcd_visualiser(app, xas_experiment, config):
     from mmg_qt_dataviewer.xmcd.analysis import Step
 
     window = XMCDVisualiser(config, list(range(1001, 1009)), xas_experiment)
+    assert window.browser.dls_loader.isChecked()
+    window.browser.dls_loader.setChecked(False)  # the synthetic files don't have the beamline metadata
     while window.browser.is_loading():
         app.processEvents()
     app.processEvents()
@@ -264,4 +266,18 @@ def test_xmcd_visualiser(app, xas_experiment, config):
     window.pair_list.by.setCurrentText('Field')
     window.pair_list.auto_pair()
     assert all(p.is_field_pair() for p in window.pairs)
+
+    # pairs made before all scans are loaded update the modes; auto-pair uses the selected scans
+    window.pair_list.clear()
+    window.chain.mode.clear()
+    for n in range(4):
+        window.browser.tree.topLevelItem(n).setSelected(True)
+    window.pair_list.by.setCurrentText('Polarisation')
+    window.browser.autoPairRequested.emit()
+    assert len(window.pairs) == 2 and window.chain.mode.count()
+    window.browser.tree.clearSelection()
+    window.browser.tree.topLevelItem(4).setSelected(True)
+    window.browser.tree.topLevelItem(5).setSelected(True)
+    window.browser.pairRequested.emit()
+    assert len(window.pairs) == 3
     window.close()

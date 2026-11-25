@@ -54,6 +54,8 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         # wiring
         self._reprocess_timer = QTimer(self, singleShot=True, interval=300, timeout=self.reprocess)
         self.browser.loaded.connect(self._scans_loaded)
+        self.browser.pairRequested.connect(lambda: run_safely(self, self.pair_list.pair_selected))
+        self.browser.autoPairRequested.connect(lambda: run_safely(self, self.pair_list.auto_pair))
         self.pair_list.changed.connect(self._pairs_changed)
         self.pair_list.pairSelected.connect(self.grid.show_pair)
         self.chain.changed.connect(self._reprocess_timer.start)
@@ -76,6 +78,7 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         self.tabs.addTab(self.series, 'Series')
         self.middle = card(self.grid, title='Pairs: processed spectra and difference')
         self.right = card(scrollable(self.tabs))  # scrolls if the window is too short for the sum rules
+        self.right.setMinimumWidth(self.tabs.minimumSizeHint().width() + 40)  # card margins and scroll bar
         self.results_splitter = QtWidgets.QSplitter(Qt.Horizontal, childrenCollapsible=False)
         self.results_splitter.addWidget(self.middle)
         self.results_splitter.addWidget(self.right)
@@ -83,7 +86,7 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         left.setMinimumHeight(860)  # scrolls on short screens rather than squashing the scan table
         left_scroll = scrollable(left)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        left_scroll.setMinimumWidth(340)
+        left_scroll.setMinimumWidth(max(340, left.minimumSizeHint().width() + 16))  # room for the scroll bar
         self.main.addWidget(left_scroll)
         self.main.addWidget(self.results_splitter)
         central = QtWidgets.QWidget()
@@ -123,7 +126,7 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
         orientation = Qt.Horizontal if wide else Qt.Vertical
         if self.results_splitter.orientation() != orientation or not self.main.sizes()[0]:
             self.results_splitter.setOrientation(orientation)
-            left = max(340, int(self.width() * 0.24))
+            left = max(self.main.widget(0).minimumWidth(), int(self.width() * 0.24))
             self.main.setSizes([left, self.width() - left])
             size = self.width() - left if wide else self.height()
             self.results_splitter.setSizes([int(size * 0.55), int(size * 0.45)])
@@ -139,15 +142,21 @@ class XMCDVisualiser(QtWidgets.QMainWindow):
 
     def _scans_loaded(self):
         scans = self.browser.loaded_scans()
-        if scans:
-            modes = list(dict.fromkeys(mode for scan in scans for mode in scan.spectra))
-            self.chain.set_modes(modes, scans[0].metadata.default_mode)
+        self._update_modes(scans)
         self.statusBar().showMessage(f"{len(scans)} XAS scans loaded from {self.browser.folder.text()}")
         if scans and not self.pairs:
             run_safely(self, self.pair_list.auto_pair)
         self.browser.draw_preview()
 
+    def _update_modes(self, scans: list[SpectraContainer]):
+        """Detection modes of the scans in the Mode menu (tey, tfy…)"""
+        if scans:
+            modes = list(dict.fromkeys(mode for scan in scans for mode in scan.spectra))
+            self.chain.set_modes(modes, scans[0].metadata.default_mode)
+
     def _pairs_changed(self):
+        self._update_modes([s for pair in self.pairs for s in (pair.scan1, pair.scan2)]
+                           + self.browser.loaded_scans())
         self.grid.set_pairs(self.pairs)
         self.reprocess()
 

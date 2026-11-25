@@ -19,7 +19,7 @@ def message(plot: PlotCanvas, text: str):
 
 
 class AveragePanel(QtWidgets.QWidget):
-    """Each polarisation with its average, both averages and the dichroism"""
+    """All the scans of each polarisation, both averages and the dichroism"""
 
     def __init__(self, parent=None):
         super().__init__(parent)

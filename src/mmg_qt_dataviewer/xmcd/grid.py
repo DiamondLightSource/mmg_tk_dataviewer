@@ -103,7 +103,7 @@ class PairGrid(QtWidgets.QWidget):
         self.layout_grid.setAlignment(Qt.AlignTop)
         self.scroll = QtWidgets.QScrollArea(widgetResizable=True, frameShape=QtWidgets.QFrame.NoFrame)
         self.scroll.setWidget(self.inner)
-        self.empty = QtWidgets.QLabel('Load scans, then use Auto-pair or Pair selected to compare scans here.',
+        self.empty = QtWidgets.QLabel('Load scans, then use Auto-pair or Add selected pair to compare scans here.',
                                       objectName='muted', alignment=Qt.AlignCenter, wordWrap=True)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

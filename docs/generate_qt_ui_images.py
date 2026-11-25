@@ -87,6 +87,7 @@ def prepare(name, window):
     elif name == 'peak_fitting':
         window.fit_all()
     elif name == 'xmcd_visualiser':
+        window.browser.dls_loader.setChecked(False)  # the synthetic files don't have the beamline metadata
         while window.browser.is_loading():
             app.processEvents()
         app.processEvents()

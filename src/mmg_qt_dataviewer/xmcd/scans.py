@@ -5,7 +5,7 @@ import os
 
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QAction, QBrush, QColor
 
 from mmg_toolbox.utils.file_functions import list_files, get_scan_number
 from mmg_toolbox.utils.misc_functions import string2numbers
@@ -25,6 +25,8 @@ class ScanBrowser(QtWidgets.QWidget):
     of the selected scans. Use the arrow keys to step through the scans.
     """
     loaded = Signal()  # all scans in the table have been loaded
+    pairRequested = Signal()  # 'Add selected pair' in the right-click menu
+    autoPairRequested = Signal()
     selectionChanged = Signal()
 
     def __init__(self, folder: str = '', parent=None):
@@ -39,7 +41,8 @@ class ScanBrowser(QtWidgets.QWidget):
         self.folder.returnPressed.connect(self.reload)
         self.numbers = QtWidgets.QLineEdit(placeholderText='Scans, e.g. 1001-1016 (blank = all)')
         self.numbers.returnPressed.connect(self.reload)
-        self.dls_loader = QtWidgets.QCheckBox('DLS loader', toolTip='Read files using the beamline metadata (hdfmap)')
+        self.dls_loader = QtWidgets.QCheckBox('DLS loader', checked=True,
+                                              toolTip='Read files using the beamline metadata (hdfmap)')
         self.dls_loader.toggled.connect(lambda: (self.scans.clear(), self.reload()))
         self.search = QtWidgets.QLineEdit(placeholderText='Filter…', clearButtonEnabled=True)
         self.search.textChanged.connect(self._filter)
@@ -48,6 +51,10 @@ class ScanBrowser(QtWidgets.QWidget):
         self.tree.setHeaderLabels(COLUMNS)
         self.tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.tree.itemSelectionChanged.connect(self._selection_changed)
+        self.tree.setToolTip('Select two scans (Ctrl+click) and right-click to add them as a pair')
+        self.tree.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.tree.addAction(QAction('Add selected pair', self.tree, triggered=self.pairRequested.emit))
+        self.tree.addAction(QAction('Auto-pair selected scans', self.tree, triggered=self.autoPairRequested.emit))
         self.tree.header().setStretchLastSection(True)
         for column, width in enumerate((60, 40, 50, 50, 60, 90)):
             self.tree.setColumnWidth(column, width)
@@ -205,7 +212,7 @@ class PairList(QtWidgets.QWidget):
         self.browser = browser
         self.by = QtWidgets.QComboBox()
         self.by.addItems(['Polarisation', 'Field'])
-        self.by.setToolTip('Pair scans with opposite polarisation at the same field,\n'
+        self.by.setToolTip('Auto-pair scans with opposite polarisation at the same field,\n'
                            'or opposite field at the same polarisation')
         self.tree = QtWidgets.QTreeWidget(rootIsDecorated=False, alternatingRowColors=True, uniformRowHeights=True)
         self.tree.setHeaderLabels(['Pair', 'Condition', ''])
@@ -217,14 +224,25 @@ class PairList(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(row(QtWidgets.QLabel('By'), self.by, button('Auto-pair', self.auto_pair, self, primary=True),
-                             button('Pair selected', self.pair_selected, self), None))
+        auto = button('Auto-pair', self.auto_pair, self, primary=True)
+        auto.setToolTip('Replace the pairs with pairs found automatically, by opposite polarisation or field,\n'
+                        'from the scans selected in the Scans table (or from all loaded scans if fewer\n'
+                        'than two are selected). Scans are only paired with the same element and temperature.')
+        add = button('Add selected pair', self.pair_selected, self)
+        add.setToolTip('Add the two scans selected in the Scans table (Ctrl+click to select two) as a new pair')
+        hint = QtWidgets.QLabel('Select two scans in the Scans table and click Add selected pair, '
+                                'or use Auto-pair to pair scans automatically.', objectName='muted', wordWrap=True)
+        layout.addWidget(hint)
+        layout.addLayout(row(QtWidgets.QLabel('By'), self.by, auto, None))
         layout.addWidget(self.tree)
-        layout.addLayout(row(button('Swap', self.swap, self), button('Remove', self.remove, self),
+        layout.addLayout(row(add, button('Swap', self.swap, self), button('Remove', self.remove, self),
                              button('Clear', self.clear, self), None))
 
     def auto_pair(self):
-        scans = self.browser.loaded_scans()
+        """Pair the selected scans, or all loaded scans if fewer than two are selected"""
+        scans = self.browser.selected_scans()
+        if len(scans) < 2:
+            scans = self.browser.loaded_scans()
         if not scans:
             raise ValueError('No scans are loaded')
         self.pairs[:] = [Pair(s1, s2) for s1, s2 in find_pairs(scans, self.by.currentText().lower())]

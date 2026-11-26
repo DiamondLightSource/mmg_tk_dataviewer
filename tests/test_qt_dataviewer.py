@@ -144,6 +144,57 @@ def test_data_viewer(app, experiment, config):
     viewer.close()
 
 
+def test_image_rois(app, experiment, config):
+    """Config ROIs in the old 6-value form and the mmg_toolbox 0.8 9-value (peak search) form"""
+    import hdfmap
+    from mmg_qt_dataviewer.config import C
+    from mmg_qt_dataviewer.plots import ImagePlot, LinePlot
+    config[C.roi] = [
+        ('old', 10, 15, 6, 8, 'pil'),
+        ('fixed', 10, 15, 6, 8, 'pil', False, None, None),
+        ('peak', 10, 15, 4, 4, 'pil', True, 10, 10),
+        ('other', 10, 15, 6, 8, 'not_a_detector', False, None, None),
+    ]
+    image = ImagePlot(config)
+    filename = os.path.join(experiment, 'i16-1001.nxs')
+    image.update_file(filename)
+    assert [roi[0] for roi in image.rois] == ['old', 'fixed', 'peak']
+    with hdfmap.load_hdf(filename) as hdf:
+        for name in ('old', 'fixed', 'peak'):
+            assert image.map.eval(hdf, f"{name}_total").shape == (11,)
+    assert len(image.plot.ax.lines) == 3, 'ROI boxes not drawn'
+    # a drawn ROI is saved with peak search off
+    image._roi_drawn(type('E', (), {'xdata': 2, 'ydata': 3}), type('E', (), {'xdata': 12, 'ydata': 9}))
+    assert len(config[C.roi][-1]) == 9 and config[C.roi][-1][6] is False
+    # the ROI totals are y-axis choices in the line plot
+    line = LinePlot(config)
+    line.update_files([filename], image.map)
+    names = [line.y_axis.itemText(n) for n in range(line.y_axis.count())]
+    assert {'old_total', 'fixed_total', 'peak_total', 'roi5_total'} <= set(names)
+    assert 'other_total' not in names
+
+
+def test_roi_editor(app, config):
+    from mmg_qt_dataviewer.config import C
+    from mmg_qt_dataviewer.roi_editor import RoiEditor
+    config[C.roi] = [('old', 10, 15, 6, 8, 'pil'), ('peak', 'pil_cen', 15, 4, 4, 'pil', True, 10, None)]
+    editor = RoiEditor(config, ['pil'])
+    assert editor.table.rowCount() == 2
+    assert editor.rois() == [('old', 10, 15, 6, 8, 'pil', False, None, None),
+                             ('peak', 'pil_cen', 15, 4, 4, 'pil', True, 10, None)]
+    editor.add_row()
+    editor.table.item(2, 1).setText('5')
+    editor.table.item(2, 2).setText('6')
+    assert editor.rois()[2] == ('roi3', 5, 6, 30, 30, 'pil', False, None, None)
+    editor.table.selectRow(0)
+    editor.remove()
+    editor.accept()
+    assert [roi[0] for roi in config[C.roi]] == ['peak', 'roi3']
+    editor.table.item(0, 3).setText('wide')
+    with pytest.raises(ValueError):
+        editor.rois()
+
+
 def test_nexus_viewer(app, experiment):
     from mmg_qt_dataviewer.nexus_viewer import NexusViewer
     viewer = NexusViewer(os.path.join(experiment, 'i16-1001.nxs'))

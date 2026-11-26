@@ -128,6 +128,7 @@ class DataViewer(QtWidgets.QMainWindow):
         self.line = LinePlot(self.config, axis_list=True)
         self.image = ImagePlot(self.config)
         self.image.indexChanged.connect(self.line.set_index)
+        self.image.roisChanged.connect(self.line.update_names)
         self.scans.selectionChanged.connect(lambda files: run_safely(self, self.on_select, files))
 
         left = QtWidgets.QSplitter(Qt.Vertical, childrenCollapsible=False)

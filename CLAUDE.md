@@ -82,6 +82,7 @@ uv run --extra dev pytest tests/test_qt_dataviewer.py -rs
     - The Pairs grid shows **all conditions** by default, so every pair appears after auto-pair. Picking a condition (temperature and field) in the combo filters the grid and the average. When the included pairs span several conditions, the average is still calculated but the info line and status bar show a ⚠ warning, because pairs at opposite fields cancel. **Refresh plots** (next to Clear) re-runs `window.reprocess()`.
     - The Average tab's top two plots show every scan of each polarisation (not their average). The averages are overlaid in the third plot.
     - Panel widths: the left scroll area's minimum width comes from its contents' `minimumSizeHint()`, and the right card's from the tabs' minimum width. Hard-coded widths clipped buttons at 1280×720 and 1366×768.
+  - `roi_editor.py`: `RoiEditor` dialog, a table of the config ROIs opened by ImagePlot's **ROIs…** button. ROIs have 9 values since mmg_toolbox 0.8 (`config.roi_params` pads old 6-value ones). `ImagePlot.roisChanged` refreshes `LinePlot.update_names`.
   - `editors.py` (Python editor, log viewer), `config_editor.py`, `visits.py` and `processing.py` (script/notebook templates from mmg_toolbox).
 
 ## Qt conventions and gotchas

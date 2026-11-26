@@ -15,7 +15,7 @@ from mmg_toolbox.fitting import multipeakfit
 from mmg_toolbox.fitting.models import PEAK_MODELS
 from .config import C, COLORMAPS, add_config_rois, roi_box
 from .style import fit_to_screen, CURRENT
-from .common import PlotCanvas, show_window, select_hdf_files
+from .common import PlotCanvas, show_window, select_hdf_files, tool_button
 
 
 def menu_button(text: str, menu: QtWidgets.QMenu, tooltip: str = '') -> QtWidgets.QToolButton:
@@ -134,14 +134,24 @@ class LinePlot(QtWidgets.QWidget):
     def update_files(self, files: list[str], hdf_map: hdfmap.NexusMap | None = None):
         self.files = files
         self.map = hdf_map or hdfmap.create_nexus_map(files[0])
-        roi_totals = [f"{roi[0]}_total" for roi in self.config.get(C.roi, [])]
-        names = list(self.map.scannables) + [n for n in roi_totals if n in self.map.combined]
         axes, signals = self.map.nexus_default_names()
-        for combo, fix, default in [(self.x_axis, self.fix_x, axes), (self.y_axis, self.fix_y, signals)]:
-            current = combo.currentText()
+        self.update_names(
+            self.x_axis.currentText() if self.fix_x.isChecked() else next(iter(axes), ''),
+            self.y_axis.currentText() if self.fix_y.isChecked() else next(iter(signals), ''),
+        )
+
+    def update_names(self, x_name: str | None = None, y_name: str | None = None):
+        """Fill the axis choices with the scannables and config ROI totals, keeping the current axes by default"""
+        if self.map is None:
+            return
+        # ROIs are added to the map by ImagePlot.add_config_rois as named expressions
+        roi_totals = [f"{roi[0]}_total" for roi in self.config.get(C.roi) or []]
+        names = list(self.map.scannables) + [n for n in roi_totals if n in self.map.alternate_names]
+        for combo, name in [(self.x_axis, x_name), (self.y_axis, y_name)]:
+            name = combo.currentText() if name is None else name
             combo.clear()
             combo.addItems(names)
-            combo.setCurrentText(current if fix.isChecked() else next(iter(default), ''))
+            combo.setCurrentText(name)
         self.y_list.blockSignals(True)
         self.y_list.clear()
         self.y_list.addItems(names)
@@ -254,6 +264,7 @@ class ImagePlot(QtWidgets.QWidget):
     Emits indexChanged(int) when the scan point changes.
     """
     indexChanged = Signal(int)
+    roisChanged = Signal()
 
     def __init__(self, config: dict, parent=None):
         super().__init__(parent)
@@ -303,7 +314,8 @@ class ImagePlot(QtWidgets.QWidget):
         draw_roi = QtWidgets.QToolButton(text='Draw ROI', checkable=True,
                                          toolTip='Drag a rectangle on the image to add a region of interest')
         draw_roi.toggled.connect(self.selector.set_active)
-        for widget in (self.detector, menu_button('Options', options_menu, 'Image options'), draw_roi):
+        edit_rois = tool_button('ROIs…', self.edit_rois, 'Edit the regions of interest (ROIs)')
+        for widget in (self.detector, menu_button('Options', options_menu, 'Image options'), draw_roi, edit_rois):
             self.plot.toolbar_row.addWidget(widget)
         scrubber = QtWidgets.QHBoxLayout()
         scrubber.setContentsMargins(8, 2, 8, 6)
@@ -393,6 +405,18 @@ class ImagePlot(QtWidgets.QWidget):
         self.config.setdefault(C.roi, []).append(roi)
         self.add_config_rois()
         self.update_image()
+        self.roisChanged.emit()
+
+    def edit_rois(self):
+        """Open the ROI editor, then add the new ROIs to the map and redraw"""
+        from .roi_editor import RoiEditor
+        detectors = list(self.map.image_data) if self.map else []
+        if not RoiEditor(self.config, detectors, self).exec():
+            return
+        if self.map:
+            self.add_config_rois()
+            self.update_image()
+        self.roisChanged.emit()
 
 
 class PlotWindow(QtWidgets.QMainWindow):
@@ -410,6 +434,7 @@ class PlotWindow(QtWidgets.QMainWindow):
                 splitter.addWidget(widget)
         if self.line and self.image:
             self.image.indexChanged.connect(self.line.set_index)
+            self.image.roisChanged.connect(self.line.update_names)
         self.setCentralWidget(splitter)
         add_menus(self, {'File': {'Open': self.open_files}}, config)
         self.update_files(files)

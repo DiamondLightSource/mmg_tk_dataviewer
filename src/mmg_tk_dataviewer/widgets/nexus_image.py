@@ -14,7 +14,7 @@ from ..misc.styles import create_hover, create_root
 from ..misc.screen_size import get_figure_size
 from ..misc.matplotlib import ini_image, add_rectangle
 from ..misc.logging import create_logger
-from ..misc.config import get_config, C, COLORMAPS, DEFAULT_COLORMAP
+from ..misc.config import get_config, C, COLORMAPS, DEFAULT_COLORMAP, add_config_rois, roi_box
 from .roi_editor import RoiEditor
 
 logger = create_logger(__file__)
@@ -49,6 +49,8 @@ class NexusDetectorImage:
         self.image_error = tk.StringVar(root, '')
         self.extra_plot_callbacks = []  # calls any function in this list on update_image
         self.roi_names = []
+        self.rois: list[tuple] = []  # config ROIs for detectors in this file
+        self.roi_boxes: dict[str, np.ndarray] = {}  # ROI corners, cached because peak-search ROIs read every image
 
         section = ttk.Frame(root)
         section.pack(side='top', expand=True, fill='both')
@@ -409,7 +411,7 @@ class NexusDetectorImage:
                 wid_i: int = 30, wid_j: int = 30, image_name: str = 'IMAGE'):
         """add region of interest to config"""
         if C.roi in self.config:
-            self.config[C.roi].append((name, cen_i, cen_j, wid_i, wid_j, image_name))
+            self.config[C.roi].append((name, cen_i, cen_j, wid_i, wid_j, image_name, False, None, None))
         self.add_config_rois()
         self.plot_config_rois()
         print(f"ROI created: {name}, {cen_i}, {cen_j}, {wid_i}, {wid_j}")
@@ -417,27 +419,25 @@ class NexusDetectorImage:
     def add_config_rois(self):
         """add config rois to hdfmap"""
         self.roi_names.clear()
-        rois = self.config.get(C.roi)
-        detector_names = list(self.map.image_data.keys())
-        if rois:
-            for name, cen_i, cen_j, wid_i, wid_j, det_name in rois:
-                if det_name in detector_names:
-                    self.map.add_roi(name, cen_i, cen_j, wid_i, wid_j, det_name)
-                    self.roi_names.extend([
-                        f"{name}_total",
-                        f"{name}_max",
-                        f"{name}_min",
-                        f"{name}_mean",
-                        f"{name}_bkg",
-                        f"{name}_rmbkg",
-                        # f"{name}_box",
-                        # f"{name}_bkg_box",
-                    ])
+        self.roi_boxes.clear()
+        self.rois = add_config_rois(self.filename, self.map, self.config)
+        for roi in self.rois:
+            name = roi[0]
+            self.roi_names.extend([
+                f"{name}_total",
+                f"{name}_max",
+                f"{name}_min",
+                f"{name}_mean",
+                f"{name}_bkg",
+                f"{name}_rmbkg",
+                # f"{name}_box",
+                # f"{name}_bkg_box",
+            ])
 
     def plot_config_rois(self):
         """plot config rois on image"""
         self.remove_im_lines()
-        rois = self.config.get(C.roi)
+        rois = self.rois
         detector = self.detector_name.get()
         option = self.PLOT_OPTIONS.index(self.plot_option.get())
         shape = self.map.get_image_shape()
@@ -445,9 +445,14 @@ class NexusDetectorImage:
         if rois:
             try:
                 with hdfmap.load_hdf(self.filename) as hdf:
-                    for n, (name, cen_i, cen_j, wid_i, wid_j, det_name) in enumerate(rois):
+                    for n, roi in enumerate(rois):
+                        name, det_name = roi[0], roi[5]
                         if det_name == detector:
-                            cen_i, cen_j, wid_i, wid_j = self.map.eval(hdf, f"{cen_i},{cen_j},{wid_i},{wid_j}")
+                            if name not in self.roi_boxes:
+                                self.roi_boxes[name] = roi_box(hdf, self.map, roi)
+                            box = self.roi_boxes[name]
+                            cen_i, cen_j = (box.min(axis=0) + box.max(axis=0)) / 2
+                            wid_i, wid_j = box.max(axis=0) - box.min(axis=0)
                             if self.flip_x.get():
                                 cen_j = shape[1] - cen_j
                             if self.flip_y.get():

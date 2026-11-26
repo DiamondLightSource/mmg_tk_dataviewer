@@ -4,7 +4,7 @@ tk widget for editing the Config file
 
 from ..misc.styles import tk, ttk
 from ..misc.logging import create_logger
-from ..misc.config import get_config, C
+from ..misc.config import get_config, C, roi_params
 
 logger = create_logger(__file__)
 
@@ -36,8 +36,8 @@ class RoiEditor:
         self.roi_lines: list[tuple[bool, ttk.Frame]] = []
         rois = self.config.get(C.roi)
         if rois:
-            for name, cen_i, cen_j, wid_i, wid_j, det_name in rois:
-                self.add_roi(name, cen_i, cen_j, wid_i, wid_j, det_name)
+            for roi in rois:
+                self.add_roi(*roi_params(roi))
 
         ln = ttk.Frame(window, borderwidth=2)
         ln.pack(side='top')
@@ -49,21 +49,24 @@ class RoiEditor:
         ttk.Button(ln, text='Close', command=self.close).pack(fill='x', expand=True)
 
     def add_roi(self, name: str = '', cen_i: int | str = '', cen_j: int | str = '',
-                wid_i: int = 30, wid_j: int = 30, det_name: str = 'IMAGE'):
+                wid_i: int = 30, wid_j: int = 30, det_name: str = 'IMAGE',
+                peak_search: bool = False, peak_rgn_i: int | None = None, peak_rgn_j: int | None = None):
         tkvars = (
-            # label, tkVar, width
+            # label, tkVar, width (None for a checkbox)
             ('Name:', tk.StringVar(self.root, name), 8),
             ('Centre_i:', tk.StringVar(self.root, cen_i), 6),
             ('Centre_j:', tk.StringVar(self.root, cen_j), 6),
             ('Width_i', tk.IntVar(self.root, wid_i), 6),
             ('Width_j', tk.IntVar(self.root, wid_j), 6),
-            ('Detector', tk.StringVar(self.root, det_name), 10)
+            ('Detector', tk.StringVar(self.root, det_name), 10),
+            ('Peak search', tk.BooleanVar(self.root, bool(peak_search)), None),
+            ('Region_i', tk.StringVar(self.root, '' if peak_rgn_i is None else peak_rgn_i), 5),
+            ('Region_j', tk.StringVar(self.root, '' if peak_rgn_j is None else peak_rgn_j), 5),
         )
         def copy_roi():
-            self.add_roi(*(var[1].get() for var in tkvars))
+            self.add_roi(*self.roi_from_vars(tkvars))
         def copy_code():
-            vals = [var[1].get() for var in tkvars]
-            code = "exp.add_roi('{}','{}','{}',{},{},'{}')".format(*vals)
+            code = "exp.add_roi('{}','{}','{}',{},{},'{}',{},{},{})".format(*self.roi_from_vars(tkvars))
             self.root.clipboard_clear()
             self.root.clipboard_append(code)
 
@@ -72,6 +75,9 @@ class RoiEditor:
         ln.pack(side='top', fill='x')
         self.roi_lines.append((True, ln))
         for label, tkvar, width in tkvars:
+            if width is None:
+                ttk.Checkbutton(ln, text=label, variable=tkvar).pack(side='left', padx=2)
+                continue
             ttk.Label(ln, text=label).pack(side='left', padx=2)
             ttk.Entry(ln, textvariable=tkvar, width=width).pack(side='left', padx=2)
         ttk.Button(ln, text='X', width=2,
@@ -80,6 +86,12 @@ class RoiEditor:
         ttk.Button(ln, text='D', width=2, command=copy_roi).pack(side='left', padx=2)
         ttk.Button(ln, text='Copy Code', command=copy_code).pack(side='left', padx=2)
 
+    @staticmethod
+    def roi_from_vars(tkvars) -> tuple:
+        """Return the ROI config values, with blank peak regions as None (the whole image)"""
+        *vals, rgn_i, rgn_j = (var[1].get() for var in tkvars)
+        return (*vals, *(int(rgn) if str(rgn).strip() else None for rgn in (rgn_i, rgn_j)))
+
     def remove_roi(self, index: int):
         check, frame = self.roi_lines[index]
         frame.pack_forget()
@@ -87,7 +99,7 @@ class RoiEditor:
 
     def create_config_rois(self):
         rois = [
-            tuple(var[1].get() for var in roi_values)
+            self.roi_from_vars(roi_values)
             for index, roi_values in enumerate(self.roi_values)
             if self.roi_lines[index][0] is True and roi_values[0][1].get()
         ]
@@ -103,7 +115,7 @@ class RoiEditor:
 
         code = f"exp = Experiment('{folder}', instrument='{beamline}')\n"
         for roi in rois:
-            code += "exp.add_roi('{}','{}','{}',{},{},'{}')\n".format(*roi)
+            code += "exp.add_roi('{}','{}','{}',{},{},'{}',{},{},{})\n".format(*roi)
         self.root.clipboard_clear()
         self.root.clipboard_append(code)
 

@@ -144,6 +144,30 @@ def test_data_viewer(app, experiment, config):
     viewer.close()
 
 
+def test_image_rois(app, experiment, config):
+    """Config ROIs in the old 6-value form and the mmg_toolbox 0.8 9-value (peak search) form"""
+    import hdfmap
+    from mmg_qt_dataviewer.config import C
+    from mmg_qt_dataviewer.plots import ImagePlot
+    config[C.roi] = [
+        ('old', 10, 15, 6, 8, 'pil'),
+        ('fixed', 10, 15, 6, 8, 'pil', False, None, None),
+        ('peak', 10, 15, 4, 4, 'pil', True, 10, 10),
+        ('other', 10, 15, 6, 8, 'not_a_detector', False, None, None),
+    ]
+    image = ImagePlot(config)
+    filename = os.path.join(experiment, 'i16-1001.nxs')
+    image.update_file(filename)
+    assert [roi[0] for roi in image.rois] == ['old', 'fixed', 'peak']
+    with hdfmap.load_hdf(filename) as hdf:
+        for name in ('old', 'fixed', 'peak'):
+            assert image.map.eval(hdf, f"{name}_total").shape == (11,)
+    assert len(image.plot.ax.lines) == 3, 'ROI boxes not drawn'
+    # a drawn ROI is saved with peak search off
+    image._roi_drawn(type('E', (), {'xdata': 2, 'ydata': 3}), type('E', (), {'xdata': 12, 'ydata': 9}))
+    assert len(config[C.roi][-1]) == 9 and config[C.roi][-1][6] is False
+
+
 def test_nexus_viewer(app, experiment):
     from mmg_qt_dataviewer.nexus_viewer import NexusViewer
     viewer = NexusViewer(os.path.join(experiment, 'i16-1001.nxs'))
